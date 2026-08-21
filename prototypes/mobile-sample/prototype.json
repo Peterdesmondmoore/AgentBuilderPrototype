@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "productKey": "agent-builder",
+  "prototypeKey": "mobile-sample",
+  "isSample": true,
+  "title": "Mobile Sample",
+  "description": "An interactive baseline walkthrough of the six high-level steps for taking a Mission Surface prototype from starter download to Request dashboard feedback.",
+  "status": "draft",
+  "formFactor": "mobile",
+  "deliveryMode": "live",
+  "fidelity": "simulated",
+  "limitations": [
+    "Uses fixture data",
+    "GitHub connection, publishing, comments, and feedback submission are simulated",
+    "No files are downloaded and no changes are persisted"
+  ],
+  "demoPath": "/demo",
+  "entryRoute": "/#/prototypes/mobile-sample",
+  "pages": [
+    "Start",
+    "Download starter",
+    "Connect GitHub",
+    "Publish or capture",
+    "Verify",
+    "Review and comment",
+    "Submit feedback"
+  ],
+  "integration": {
+    "protocol": "mission-surface-prototype",
+    "version": 2
+  },
+  "createdAt": "2026-08-15",
+  "updatedAt": "2026-08-16",
+  "catalogueId": "agent-builder-prototype-catalogue"
+}

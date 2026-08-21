@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "productKey": "agent-builder",
+  "prototypeKey": "agent-builder-self-improvement",
+  "isSample": false,
+  "title": "Agent Builder — Agent Testers & Self-Improvement",
+  "description": "A fixture-only laptop prototype showing persona-based synthetic testing, unified feedback evaluation, a human-reviewed Draft change and deterministic retesting.",
+  "status": "testing",
+  "formFactor": "laptop",
+  "deliveryMode": "live",
+  "fidelity": "simulated",
+  "limitations": [
+    "All personas, conversations, routing, test results and recommendations are deterministic fixture behavior",
+    "No AI model, production assistant, user data or external service is called",
+    "Changes apply only to simulated local Draft state and require an explicit human-reviewed action",
+    "The Coming Soon material describes a future capability, not production functionality"
+  ],
+  "demoPath": "/demo",
+  "entryRoute": "/#/prototypes/agent-builder-self-improvement",
+  "pages": [
+    "Overview",
+    "Builder",
+    "Agent Testers",
+    "Feedback"
+  ],
+  "integration": {
+    "protocol": "mission-surface-prototype",
+    "version": 2
+  },
+  "createdAt": "2026-08-22",
+  "updatedAt": "2026-08-22",
+  "catalogueId": "agent-builder-prototype-catalogue"
+}

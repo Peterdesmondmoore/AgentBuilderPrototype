@@ -1,0 +1,53 @@
+.screen-explainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  border: 1px solid #8b5cf666;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #312e8152, #0c4a6e33);
+  padding: 13px;
+  box-shadow: 0 10px 26px #0004;
+}
+
+.screen-explainer > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.screen-explainer span {
+  color: #c4b5fd;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.screen-explainer strong {
+  margin-top: 4px;
+  color: #f8fafc;
+  font-size: 11px;
+}
+
+.screen-explainer p {
+  margin: 5px 0 0;
+  color: #cbd5e1;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.screen-explainer button {
+  flex: 0 0 auto;
+  border: 1px solid #a78bfa77;
+  border-radius: 9px;
+  background: #8b5cf633;
+  color: #ede9fe;
+  padding: 8px 9px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.screen-explainer button:hover {
+  background: #8b5cf655;
+}

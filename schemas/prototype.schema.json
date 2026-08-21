@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mission Surface child prototype",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "productKey", "prototypeKey", "isSample", "title", "description", "status", "formFactor", "deliveryMode", "fidelity", "limitations", "pages", "createdAt", "updatedAt", "catalogueId"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "productKey": { "$ref": "#/$defs/key" },
+    "prototypeKey": { "$ref": "#/$defs/key" },
+    "isSample": { "type": "boolean", "description": "True only for a protected Mission Surface baseline sample; false for product prototypes." },
+    "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "status": { "enum": ["draft", "testing", "approved"] },
+    "formFactor": { "enum": ["mobile", "laptop"] },
+    "deliveryMode": { "enum": ["live", "screenshots"] },
+    "fidelity": { "const": "simulated" },
+    "limitations": { "type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 1000 } },
+    "pages": { "type": "array", "minItems": 1, "maxItems": 50, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+    "demoPath": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "entryRoute": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "version"],
+      "properties": { "protocol": { "const": "mission-surface-prototype" }, "version": { "const": 2 } }
+    },
+    "screenshots": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/screenshot" } },
+    "createdAt": { "type": "string", "format": "date" },
+    "updatedAt": { "type": "string", "format": "date" },
+    "catalogueId": { "$ref": "#/$defs/key" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "deliveryMode": { "const": "live" } }, "required": ["deliveryMode"] },
+      "then": { "required": ["demoPath", "entryRoute", "integration"], "properties": { "screenshots": { "maxItems": 0 } } },
+      "else": { "required": ["screenshots"], "not": { "anyOf": [{ "required": ["demoPath"] }, { "required": ["entryRoute"] }, { "required": ["integration"] }] } }
+    }
+  ],
+  "$defs": {
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120 },
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "path", "altText"],
+      "properties": {
+        "page": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "path": { "type": "string", "pattern": "^/prototypes/[a-z0-9-]+/screenshots/[^/]+\\.(png|jpg|jpeg|webp)$", "maxLength": 500 },
+        "altText": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    }
+  }
+}

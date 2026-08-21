@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "productKey": "agent-builder",
+  "prototypeKey": "laptop-sample",
+  "isSample": true,
+  "title": "Laptop Sample",
+  "description": "A screenshot-delivered baseline walkthrough of the six high-level steps for taking a Mission Surface prototype from starter download to Request dashboard feedback.",
+  "status": "draft",
+  "formFactor": "laptop",
+  "deliveryMode": "screenshots",
+  "fidelity": "simulated",
+  "limitations": [
+    "Uses fixture data",
+    "GitHub connection, publishing, comments, and feedback submission are represented as page images",
+    "No files are downloaded and no changes are persisted"
+  ],
+  "pages": [
+    "Setup path",
+    "Review path"
+  ],
+  "screenshots": [
+    {
+      "page": "Setup path",
+      "path": "/prototypes/laptop-sample/screenshots/overview.png",
+      "altText": "Dark Mission Surface setup path showing download, GitHub connection, and live or image delivery choices"
+    },
+    {
+      "page": "Review path",
+      "path": "/prototypes/laptop-sample/screenshots/outcome-detail.png",
+      "altText": "Dark Mission Surface review path showing verification, contextual review, comments, and Request dashboard feedback"
+    }
+  ],
+  "annotations": [
+    {
+      "page": "Setup path",
+      "items": [
+        {
+          "number": 1,
+          "x": 76,
+          "y": 57,
+          "content": "Evaluate whether the choice between GitHub Pages and local image preparation is clear within the setup sequence."
+        }
+      ]
+    },
+    {
+      "page": "Review path",
+      "items": [
+        {
+          "number": 1,
+          "x": 62,
+          "y": 57,
+          "content": "Evaluate whether contextual review and the handoff to the Request dashboard feel like one connected feedback loop."
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-08-15",
+  "updatedAt": "2026-08-16",
+  "catalogueId": "agent-builder-prototype-catalogue"
+}
