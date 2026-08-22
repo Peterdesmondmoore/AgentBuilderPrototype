@@ -1,4 +1,14 @@
-import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationNodeDatum } from "d3";
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type Simulation,
+  type SimulationNodeDatum,
+} from "d3";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type Page =
@@ -148,8 +158,8 @@ const networkNodes: NetworkNode[] = [
   {
     id: "form",
     type: "Form / workflow",
-    label: "Escalation Intake",
-    detail: "Guided workflow",
+    label: "Create a Mission",
+    detail: "Guided Mission workflow",
     x: 650,
     y: 350,
   },
@@ -164,7 +174,7 @@ const networkNodes: NetworkNode[] = [
   {
     id: "raid",
     type: "Data Object",
-    label: "RAID Items",
+    label: "RAID",
     detail: "Structured context",
     x: 850,
     y: 185,
@@ -395,6 +405,162 @@ const missionSurfaceCapabilityFixtures: MissionSurfaceFixture[] = [
   },
 ];
 
+const agentBuilderDataObjectFixtures: MissionSurfaceFixture[] = [
+  {
+    name: "Current Date & Time",
+    module: "General",
+    purpose: "Current timestamp used to resolve relative time requests.",
+  },
+  {
+    name: "Chat History",
+    module: "General",
+    purpose: "Explicitly configured recent conversation context.",
+  },
+  {
+    name: "Data Object Catalogue",
+    module: "General",
+    purpose: "Available governed objects, sources and permitted scopes.",
+  },
+  {
+    name: "Company Data Isolation",
+    module: "Policies",
+    purpose: "Prevents cross-company information exposure.",
+  },
+  {
+    name: "User-Authorised Access",
+    module: "Policies",
+    purpose: "Restricts retrieval to information available to the user.",
+  },
+  {
+    name: "Information Sufficiency & Clarification",
+    module: "Policies",
+    purpose: "Requires focused clarification when context is insufficient.",
+  },
+  {
+    name: "Facts & Suggestions",
+    module: "Policies",
+    purpose: "Distinguishes retrieved facts from generated suggestions.",
+  },
+  {
+    name: "Confirmation Before Action",
+    module: "Policies",
+    purpose: "Requires confirmation for consequential activity.",
+  },
+  {
+    name: "Mission",
+    module: "Mission Surface",
+    purpose: "Mission definition, ownership and strategic intent.",
+  },
+  {
+    name: "Mission Key Results",
+    module: "Mission Surface",
+    purpose: "Mission targets, dates and attainment.",
+  },
+  {
+    name: "Outcome",
+    module: "Mission Surface",
+    purpose: "Outcome definition, ownership and delivery evidence.",
+  },
+  {
+    name: "Acceptance Criteria",
+    module: "Mission Surface",
+    purpose: "Governed criteria for Outcome completion.",
+  },
+  {
+    name: "RAID",
+    module: "Mission Surface",
+    purpose: "Risks, assumptions, issues and dependencies.",
+  },
+  {
+    name: "Decision",
+    module: "Mission Surface",
+    purpose: "Decision statements, options and resolution details.",
+  },
+  {
+    name: "Product",
+    module: "Mission Surface",
+    purpose: "Product ownership and strategic context.",
+  },
+  {
+    name: "Product Release",
+    module: "Mission Surface",
+    purpose: "Release dates, status and dependencies.",
+  },
+  {
+    name: "Product Request",
+    module: "Mission Surface",
+    purpose: "Demand, priority and request context.",
+  },
+  {
+    name: "Planner Task",
+    module: "Mission Surface",
+    purpose: "Tasks, dates, owners and dependencies.",
+  },
+  {
+    name: "People / Stakeholders",
+    module: "Mission Surface",
+    purpose: "Owners, delivery leads and stakeholders.",
+  },
+  {
+    name: "Notes",
+    module: "Mission Surface",
+    purpose: "Recent governed notes and supporting context.",
+  },
+];
+
+const agentBuilderCapabilityFixtures: MissionSurfaceFixture[] = [
+  {
+    name: "Mission Status Review",
+    module: "Agentic Q&A",
+    purpose: "Review Mission health and management attention.",
+  },
+  {
+    name: "Outcome Delivery Review",
+    module: "Agentic Q&A",
+    purpose: "Assess Outcome progress and delivery confidence.",
+  },
+  {
+    name: "RAID Analysis",
+    module: "Agentic Q&A",
+    purpose: "Identify material risks, issues and dependencies.",
+  },
+  {
+    name: "Product Release Lookup",
+    module: "Agentic Q&A",
+    purpose: "Answer governed release questions.",
+  },
+  {
+    name: "Mission Intent Q&A",
+    module: "Agentic Q&A",
+    purpose: "Establish Mission intent and information sufficiency.",
+  },
+  {
+    name: "Business Challenge Q&A",
+    module: "Agentic Q&A",
+    purpose: "Clarify the business challenge.",
+  },
+  {
+    name: "Strategic Outcome Q&A",
+    module: "Agentic Q&A",
+    purpose: "Define the intended strategic outcome.",
+  },
+  {
+    name: "General Governed Data Lookup",
+    module: "Agentic Q&A",
+    purpose: "Route broad requests through governed data.",
+  },
+  {
+    name: "Create a Mission",
+    module: "Agentic Workflow",
+    purpose: "Sequence Q&A capabilities into a Mission draft.",
+  },
+  {
+    name: "Create an Outcome",
+    module: "Agentic Workflow",
+    purpose: "Sequence Q&A capabilities into an Outcome draft.",
+  },
+];
+
 const fixtureNodeId = (prefix: string, name: string) =>
   `${prefix}-${name
     .toLowerCase()
@@ -416,42 +582,99 @@ const layoutAgentNetwork = (
           id: "chat-history",
           type: "Data Object",
           label: "Chat History",
-          detail: "Conversation · explicit context only",
+          detail: "General · explicit context only",
           x: 0,
           y: 0,
         },
       ];
-  const contextNodes = missionSurfaceDataFixtures.map((item) => ({
-    id: fixtureNodeId("ms-data", item.name),
-    type: item.module === "System" ? "System Context" : "Data Object",
-    label: fixtureLabel(item.name),
-    detail: `${item.module} · ${item.purpose}`,
-    x: 0,
-    y: 0,
-  }));
-  const capabilityNodes = missionSurfaceCapabilityFixtures.map((item) => ({
-    id: fixtureNodeId("ms-capability", item.name),
-    type: "Capability",
-    label: fixtureLabel(item.name),
-    detail: `${item.module} · ${item.purpose}`,
-    x: 0,
-    y: 0,
-  }));
+  const existingLabels = new Set(agent.nodes.map((node) => node.label));
+  const contextNodes = agentBuilderDataObjectFixtures
+    .filter(
+      (item) => item.name !== "Chat History" && !existingLabels.has(item.name),
+    )
+    .map((item) => ({
+      id: fixtureNodeId("ms-data", item.name),
+      type:
+        item.name === "Current Date & Time" ? "System Context" : "Data Object",
+      label: item.name,
+      detail: `${item.module} · ${item.purpose}`,
+      x: 0,
+      y: 0,
+    }));
+  const capabilityNodes = agentBuilderCapabilityFixtures
+    .filter((item) => !existingLabels.has(item.name))
+    .map((item) => ({
+      id: fixtureNodeId("ms-capability", item.name),
+      type:
+        item.module === "Agentic Workflow"
+          ? "Form / workflow"
+          : "Q&A capability",
+      label: item.name,
+      detail: `${item.module} · ${item.purpose}`,
+      x: 0,
+      y: 0,
+    }));
   const nodes = [
     ...agent.nodes,
     ...conversationNodes,
     ...capabilityNodes,
     ...contextNodes,
   ];
+  const questionNodes = capabilityNodes.filter(
+    (node) => node.type === "Q&A capability",
+  );
+  const workflowNodes = capabilityNodes.filter(
+    (node) => node.type === "Form / workflow",
+  );
+  const allQuestionNodes = [
+    ...agent.nodes.filter((node) => node.type === "Q&A capability"),
+    ...questionNodes,
+  ];
+  const allWorkflowNodes = [
+    ...agent.nodes.filter((node) => node.type === "Form / workflow"),
+    ...workflowNodes,
+  ];
+  const currentDateNode = contextNodes.find(
+    (node) => node.label === "Current Date & Time",
+  );
+  const generalLookupNode = allQuestionNodes.find(
+    (node) => node.label === "General Governed Data Lookup",
+  );
+  const catalogueNode = contextNodes.find(
+    (node) => node.label === "Data Object Catalogue",
+  );
+  const productReleaseNode = contextNodes.find(
+    (node) => node.label === "Product Release",
+  );
   const edges: Array<[string, string]> = [
     ...agent.edges,
-    ...capabilityNodes.map((node) => ["router", node.id] as [string, string]),
-    ...capabilityNodes.map(
+    ...questionNodes.map((node) => ["router", node.id] as [string, string]),
+    ...workflowNodes.map((node) => ["router", node.id] as [string, string]),
+    ...(currentDateNode
+      ? allQuestionNodes.map(
+          (question) => [currentDateNode.id, question.id] as [string, string],
+        )
+      : []),
+    ...(generalLookupNode && catalogueNode
+      ? [[generalLookupNode.id, catalogueNode.id] as [string, string]]
+      : []),
+    ...(generalLookupNode && productReleaseNode
+      ? [[generalLookupNode.id, productReleaseNode.id] as [string, string]]
+      : []),
+    ...questionNodes.map(
       (node, index) =>
         [node.id, contextNodes[index % contextNodes.length].id] as [
           string,
           string,
         ],
+    ),
+    ...allWorkflowNodes.flatMap((workflow, workflowIndex) =>
+      allQuestionNodes
+        .slice(workflowIndex * 3, workflowIndex * 3 + 4)
+        .map((question) => [question.id, workflow.id] as [string, string]),
+    ),
+    ...allWorkflowNodes.map(
+      (workflow) => [workflow.id, "chat"] as [string, string],
     ),
   ];
   const contextLayoutNodes = nodes.filter((node) =>
@@ -623,13 +846,25 @@ const initialChatThreads: Record<string, ChatMessage[]> = {
   ],
 };
 
-const fixtureChatResponse = (agentName: string, message: string) => {
+const fixtureChatResponse = (agent: AgentFixtureNetwork, message: string) => {
   const question = message.toLowerCase();
-  if (agentName === "Portfolio Navigator") {
+  if (agent.name === "Portfolio Navigator") {
     if (question.includes("risk") || question.includes("health"))
       return "The fixture portfolio is broadly on track, with two outcomes needing an executive decision on sequencing this quarter.";
     return "For this fixture portfolio, I would summarise the health, material dependencies and the next decision owner for the executive audience.";
   }
+  if (question === "can you review it?" || question === "can you review it")
+    return "What would you like me to review: a Mission, an Outcome, a release, or a specific delivery concern? I have not invoked a capability yet.";
+  if (
+    question.includes("next release") ||
+    question.includes("investment analytics")
+  )
+    return "The next Investment Analytics release is the September 2026 fixture release. General Governed Data Lookup identified Product Release through the Data Object Catalogue.";
+  if (
+    question.includes("create a mission") ||
+    question.includes("help me create")
+  )
+    return "Create a Mission · Step 1 of 4 — What strategic intent should this Mission serve?";
   if (
     question.includes("risk") ||
     question.includes("worried") ||
@@ -640,8 +875,41 @@ const fixtureChatResponse = (agentName: string, message: string) => {
 };
 
 const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
+  const question = message.toLowerCase();
+  if (question === "can you review it?" || question === "can you review it")
+    return ["chat", "router", "response"];
+  if (
+    agent.id === "agent-builder" &&
+    (question.includes("next release") ||
+      question.includes("investment analytics"))
+  )
+    return [
+      "chat",
+      "router",
+      "agent",
+      "ms-data-current-date-time",
+      "ms-capability-general-governed-data-lookup",
+      "ms-data-data-object-catalogue",
+      "ms-data-product-release",
+      "model",
+      "response",
+    ];
+  if (
+    agent.id === "agent-builder" &&
+    (question.includes("create a mission") ||
+      question.includes("help me create"))
+  )
+    return [
+      "chat",
+      "router",
+      "agent",
+      "form",
+      "ms-capability-mission-intent-q-a",
+      "model",
+      "response",
+    ];
   const prefersWorkflow = /escalat|decision brief|submit|form|intake/.test(
-    message.toLowerCase(),
+    question,
   );
   const capability =
     prefersWorkflow && agent.draft.routingTargets.includes("form")
@@ -655,6 +923,13 @@ const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
     "chat",
     "router",
     "agent",
+    ...(agent.id === "agent-builder"
+      ? [
+          "ms-data-current-date-time",
+          "ms-data-company-data-isolation",
+          "ms-data-user-authorised-access",
+        ]
+      : []),
     ...(capability ? [capability] : []),
     ...(capability === "qa" ? agent.draft.dataObjects : []),
     "model",
@@ -1149,6 +1424,10 @@ function AgentNetwork({
   const [chatThreads, setChatThreads] =
     useState<Record<string, ChatMessage[]>>(initialChatThreads);
   const [chatInput, setChatInput] = useState("");
+  const [formSteps, setFormSteps] = useState<Record<string, number>>({});
+  const [awaitingClarification, setAwaitingClarification] = useState<
+    Record<string, boolean>
+  >({});
   const [executionPath, setExecutionPath] = useState<string[]>([]);
   const [lastExecutionPath, setLastExecutionPath] = useState<string[]>([]);
   const [feedbackCapture, setFeedbackCapture] =
@@ -1300,6 +1579,57 @@ function AgentNetwork({
   const sendMessage = () => {
     const message = chatInput.trim();
     if (!message) return;
+    const currentFormStep = formSteps[selectedAgent.id] ?? 0;
+    let response = fixtureChatResponse(selectedAgent, message);
+    let path = fixtureExecutionPath(selectedAgent, message);
+    if (currentFormStep > 0) {
+      const formQuestions = [
+        "ms-capability-mission-intent-q-a",
+        "ms-capability-business-challenge-q-a",
+        "ms-capability-strategic-outcome-q-a",
+        "qa",
+      ];
+      const nextStep = currentFormStep + 1;
+      path = [
+        "chat",
+        "router",
+        "agent",
+        "form",
+        formQuestions[Math.min(currentFormStep, formQuestions.length - 1)],
+        "model",
+        "response",
+      ];
+      response =
+        nextStep === 2
+          ? "Create a Mission · Step 2 of 4 — What business challenge makes this Mission necessary now?"
+          : nextStep === 3
+            ? "Create a Mission · Step 3 of 4 — What strategic outcome should be achieved?"
+            : nextStep === 4
+              ? "Create a Mission · Step 4 of 4 — Which measurable Key Results would demonstrate success?"
+              : "Form Response — Mission Name: Digital Investment Platform · Strategic Intent: modernise investment delivery · Business Challenge: release dependencies reduce confidence · Strategic Outcome: predictable, governed delivery · Proposed Key Results: September release readiness and all material dependencies owned. This fixture has not persisted a Mission.";
+      setFormSteps((current) => ({
+        ...current,
+        [selectedAgent.id]: nextStep > 4 ? 0 : nextStep,
+      }));
+    } else if (awaitingClarification[selectedAgent.id]) {
+      response =
+        "I understood that you want the Digital Investment Platform Mission reviewed. RAID Analysis found the payments-integration dependency is the material delivery concern requiring an owner decision this week.";
+      path = fixtureExecutionPath(
+        selectedAgent,
+        "delivery risk for the Digital Investment Platform Mission",
+      );
+      setAwaitingClarification((current) => ({
+        ...current,
+        [selectedAgent.id]: false,
+      }));
+    } else if (/^can you review it\??$/i.test(message)) {
+      setAwaitingClarification((current) => ({
+        ...current,
+        [selectedAgent.id]: true,
+      }));
+    } else if (/create a mission|help me create/i.test(message)) {
+      setFormSteps((current) => ({ ...current, [selectedAgent.id]: 1 }));
+    }
     setChatThreads((current) => ({
       ...current,
       [selectedAgent.id]: [
@@ -1307,11 +1637,10 @@ function AgentNetwork({
         { speaker: "user", text: message },
         {
           speaker: "assistant",
-          text: fixtureChatResponse(selectedAgent.name, message),
+          text: response,
         },
       ],
     }));
-    const path = fixtureExecutionPath(selectedAgent, message);
     setExecutionPath(path);
     setLastExecutionPath(path);
     setChatInput("");
@@ -1324,6 +1653,11 @@ function AgentNetwork({
     setFeedbackCapture("idle");
     setFeedbackText("");
     setFeedbackEvidence(null);
+    setFormSteps((current) => ({ ...current, [selectedAgent.id]: 0 }));
+    setAwaitingClarification((current) => ({
+      ...current,
+      [selectedAgent.id]: false,
+    }));
   };
   const requestFeedback = () => {
     if (!chatMessages.some((message) => message.speaker === "user")) return;
@@ -1585,6 +1919,7 @@ function AgentNetwork({
         setInput={setChatInput}
         send={sendMessage}
         hasExecution={executionPath.length > 0}
+        trace={executionPath.map((id) => nodeById.get(id)?.label ?? id)}
         clearExecution={() => setExecutionPath([])}
         requestFeedback={requestFeedback}
         canEndConversation={chatMessages.some(
@@ -1654,11 +1989,22 @@ function AgentNetwork({
         <div className="agent-selection-bar">
           <label className="agent-selector">
             <span>Agent</span>
-            <select value={selectedAgentId} onChange={(event) => selectAgent(event.target.value)} aria-label="Select agent">
-              {agentNetworks.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
+            <select
+              value={selectedAgentId}
+              onChange={(event) => selectAgent(event.target.value)}
+              aria-label="Select agent"
+            >
+              {agentNetworks.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
             </select>
           </label>
-          <div><strong>{selectedAgent.name}</strong><small>{selectedAgent.summary}</small></div>
+          <div>
+            <strong>{selectedAgent.name}</strong>
+            <small>{selectedAgent.summary}</small>
+          </div>
         </div>
         <div className="network-toolbar">
           <div>
@@ -1696,7 +2042,12 @@ function AgentNetwork({
             {Math.round(view.scale * 100)}%
           </small>
         </div>
-        <MissionControlAgentNetwork agent={selectedAgent} selectedNodeId={selectedNodeId} onSelect={setSelectedNodeId} />
+        <MissionControlAgentNetwork
+          agent={selectedAgent}
+          selectedNodeId={selectedNodeId}
+          executionPath={executionPath}
+          onSelect={setSelectedNodeId}
+        />
         <div className="network-detail-layout">
           <div className="network-visual-canvas">
             <svg
@@ -1849,61 +2200,233 @@ function AgentNetwork({
   );
 }
 
-type MissionControlAgentNode = NetworkNode & SimulationNodeDatum & { radius: number };
+type MissionControlAgentNode = NetworkNode &
+  SimulationNodeDatum & { radius: number };
 
 function MissionControlAgentNetwork({
   agent,
   selectedNodeId,
+  executionPath,
   onSelect,
 }: {
   agent: AgentFixtureNetwork;
   selectedNodeId: string;
+  executionPath: string[];
   onSelect: (id: string) => void;
 }) {
   const [nodes, setNodes] = useState<MissionControlAgentNode[]>([]);
-  const [view, setView] = useState({ x: 0, y: 0, zoom: 0.82 });
-  const drag = useRef<{ id: string; pointerId: number; x: number; y: number } | null>(null);
-  const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
+  const drag = useRef<{
+    id: string;
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(
+    null,
+  );
+  const simulationRef = useRef<Simulation<
+    MissionControlAgentNode,
+    undefined
+  > | null>(null);
   const dataGroupFor = (node: NetworkNode) => {
     const detail = node.detail.toLowerCase();
-    if (node.label === "Current Date and Time" || node.label === "Current Date & Time") return "general";
-    if (detail.startsWith("policies") || ["Company Data Isolation", "User-Authorised Access", "Information Sufficiency", "Facts and Suggestions", "Confirmation Before Action"].includes(node.label)) return "policies";
-    if (detail.startsWith("agent builder") || node.label === "Data Object Catalogue") return "general";
+    if (
+      node.label === "Current Date and Time" ||
+      node.label === "Current Date & Time"
+    )
+      return "general";
+    if (
+      detail.startsWith("policies") ||
+      [
+        "Company Data Isolation",
+        "User-Authorised Access",
+        "Information Sufficiency",
+        "Facts and Suggestions",
+        "Confirmation Before Action",
+      ].includes(node.label)
+    )
+      return "policies";
+    if (
+      detail.startsWith("agent builder") ||
+      node.label === "Data Object Catalogue"
+    )
+      return "general";
     return "mission-surface";
   };
-  const columnFor = (node: NetworkNode) => {
-    if (node.label === "Current Date and Time" || node.label === "Current Date & Time") return 130;
-    if (node.type === "Data Object" || node.type === "Knowledge source" || node.type === "System Context") return dataGroupFor(node) === "policies" ? 315 : dataGroupFor(node) === "general" ? 470 : 620;
-    if (node.type === "Q&A capability" || node.type === "Capability" || node.type === "Router" || node.type === "Agent") return 820;
-    if (node.type === "Form / workflow") return 1040;
-    return 1250;
+  const sideWithin = (
+    node: NetworkNode,
+    predicate: (candidate: NetworkNode) => boolean,
+  ) =>
+    Math.max(
+      0,
+      agent.nodes.filter(predicate).findIndex((item) => item.id === node.id),
+    ) % 2;
+  const laneFor = (node: NetworkNode) => {
+    if (
+      node.label === "Current Date and Time" ||
+      node.label === "Current Date & Time"
+    )
+      return "timeliness";
+    if (
+      ["Data Object", "Knowledge source", "System Context"].includes(node.type)
+    ) {
+      const group = dataGroupFor(node);
+      if (group === "mission-surface")
+        return `data-mission-${sideWithin(node, (candidate) => ["Data Object", "Knowledge source", "System Context"].includes(candidate.type) && dataGroupFor(candidate) === "mission-surface")}`;
+      return `data-${group}`;
+    }
+    if (node.type === "Q&A capability" || node.type === "Capability")
+      return `question-${sideWithin(node, (candidate) => candidate.type === "Q&A capability" || candidate.type === "Capability")}`;
+    if (["Router", "Agent", "Model"].includes(node.type))
+      return "question-control";
+    if (node.type === "Form / workflow") return "workflow";
+    return "chat";
   };
-  const radiusFor = (node: NetworkNode) => node.type === "Agent" ? 60 : node.type === "Chat" || node.type === "Router" || node.type === "Response" ? 40 : 47;
+  const columnFor = (node: NetworkNode) =>
+    ({
+      timeliness: 115,
+      "data-policies": 285,
+      "data-general": 420,
+      "data-mission-0": 555,
+      "data-mission-1": 680,
+      "question-control": 790,
+      "question-0": 865,
+      "question-1": 950,
+      workflow: 1090,
+      chat: 1280,
+    })[laneFor(node)] ?? 1280;
+  const radiusFor = (node: NetworkNode) =>
+    node.type === "Agent"
+      ? 60
+      : node.type === "Chat" ||
+          node.type === "Router" ||
+          node.type === "Response"
+        ? 40
+        : 47;
+  const labelsFor = (label: string) => {
+    const words = label.split(/\s+/);
+    if (label.length <= 16) return [label];
+    const lines = [""];
+    words.forEach((word) => {
+      const last = lines.length - 1;
+      if (`${lines[last]} ${word}`.trim().length <= 16 || lines.length === 3)
+        lines[last] = `${lines[last]} ${word}`.trim();
+      else lines.push(word);
+    });
+    return lines;
+  };
+  const laneNodes = new Map<string, NetworkNode[]>();
+  agent.nodes.forEach((node) =>
+    laneNodes.set(laneFor(node), [
+      ...(laneNodes.get(laneFor(node)) ?? []),
+      node,
+    ]),
+  );
+  const largestLane = Math.max(
+    1,
+    ...[...laneNodes.values()].map((lane) => lane.length),
+  );
+  const worldHeight = Math.max(700, largestLane * 112 + 190);
+  const targetYFor = (node: NetworkNode) => {
+    const peers = laneNodes.get(laneFor(node)) ?? [node];
+    const index = peers.findIndex((peer) => peer.id === node.id);
+    return peers.length === 1
+      ? worldHeight / 2
+      : 140 + index * ((worldHeight - 280) / (peers.length - 1));
+  };
 
   useEffect(() => {
     const byId = new Map(agent.nodes.map((node) => [node.id, node]));
-    const graphNodes = agent.nodes.map((node, index) => ({ ...node, radius: radiusFor(node), x: columnFor(node), y: 100 + (index * 113) % 520 }));
-    const links = agent.edges.map(([source, target]) => ({ source, target })).filter((link) => byId.has(String(link.source)) && byId.has(String(link.target)));
+    const graphNodes = agent.nodes.map((node) => ({
+      ...node,
+      radius: radiusFor(node),
+      x: columnFor(node),
+      y: targetYFor(node),
+    }));
+    const links = agent.edges
+      .map(([source, target]) => ({ source, target }))
+      .filter(
+        (link) =>
+          byId.has(String(link.source)) && byId.has(String(link.target)),
+      );
     const simulation = forceSimulation<MissionControlAgentNode>(graphNodes)
-      .force("link", forceLink<MissionControlAgentNode, { source: string; target: string }>(links).id((node) => node.id).distance(180).strength(0.3))
-      .force("charge", forceManyBody<MissionControlAgentNode>().strength(-160).distanceMax(250))
-      .force("columns", forceX((node: MissionControlAgentNode) => columnFor(node)).strength(0.92))
-      .force("vertical", forceY(350).strength(0.025))
-      .force("collision", forceCollide((node: MissionControlAgentNode) => node.radius + 17).strength(0.98).iterations(3))
+      .force(
+        "link",
+        forceLink<MissionControlAgentNode, { source: string; target: string }>(
+          links,
+        )
+          .id((node) => node.id)
+          .distance(180)
+          .strength(0.1),
+      )
+      .force(
+        "charge",
+        forceManyBody<MissionControlAgentNode>()
+          .strength(-160)
+          .distanceMax(250),
+      )
+      .force("center", forceCenter(700, worldHeight / 2).strength(0.02))
+      .force(
+        "columns",
+        forceX((node: MissionControlAgentNode) => columnFor(node)).strength(
+          0.96,
+        ),
+      )
+      .force(
+        "vertical",
+        forceY((node: MissionControlAgentNode) => targetYFor(node)).strength(
+          0.9,
+        ),
+      )
+      .force(
+        "collision",
+        forceCollide((node: MissionControlAgentNode) => node.radius + 11)
+          .strength(0.98)
+          .iterations(4),
+      )
       .alphaDecay(0.11)
       .velocityDecay(0.5);
     simulation.stop();
     for (let tick = 0; tick < 140; tick += 1) simulation.tick();
     setNodes(graphNodes.map((node) => ({ ...node })));
-    return () => { simulation.stop(); };
-  }, [agent]);
+    simulation.on("tick", () =>
+      setNodes(graphNodes.map((node) => ({ ...node }))),
+    );
+    simulationRef.current = simulation;
+    return () => {
+      simulation.stop();
+      if (simulationRef.current === simulation) simulationRef.current = null;
+    };
+  }, [agent, worldHeight]);
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const related = new Set(agent.edges.filter(([from, to]) => from === selectedNodeId || to === selectedNodeId).flat());
-  const setZoom = (amount: number) => setView((current) => ({ ...current, zoom: Math.max(0.4, Math.min(2.2, Number((current.zoom + amount).toFixed(2)))) }));
+  const related = new Set(
+    agent.edges
+      .filter(([from, to]) => from === selectedNodeId || to === selectedNodeId)
+      .flat(),
+  );
+  const setZoom = (amount: number) =>
+    setView((current) => ({
+      ...current,
+      zoom: Math.max(
+        0.4,
+        Math.min(2.2, Number((current.zoom + amount).toFixed(2))),
+      ),
+    }));
   const startDrag = (event: React.PointerEvent<SVGGElement>, id: string) => {
     event.stopPropagation();
-    drag.current = { id, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    const node = simulationRef.current?.nodes().find((item) => item.id === id);
+    if (node) {
+      node.fx = node.x;
+      node.fy = node.y;
+    }
+    drag.current = {
+      id,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: React.PointerEvent<SVGGElement>) => {
@@ -1911,24 +2434,217 @@ function MissionControlAgentNetwork({
     if (!active || active.pointerId !== event.pointerId) return;
     const deltaX = (event.clientX - active.x) / view.zoom;
     const deltaY = (event.clientY - active.y) / view.zoom;
-    active.x = event.clientX; active.y = event.clientY;
-    setNodes((current) => current.map((node) => node.id === active.id ? { ...node, x: (node.x ?? 0) + deltaX, y: (node.y ?? 0) + deltaY } : node));
+    active.x = event.clientX;
+    active.y = event.clientY;
+    const node = simulationRef.current
+      ?.nodes()
+      .find((item) => item.id === active.id);
+    if (node) {
+      node.fx = (node.fx ?? node.x ?? 0) + deltaX;
+      node.fy = (node.fy ?? node.y ?? 0) + deltaY;
+      simulationRef.current?.alpha(0.2).restart();
+    }
   };
-  return <section className="mission-control-agent-network" aria-label={`${agent.name} Mission Control network`}>
-    <header><div><span className="ab-kicker">AGENT NETWORK</span><strong>{agent.name}</strong><small>Drag nodes · pan the canvas · select a node to inspect it</small></div><div className="mission-control-actions"><button onClick={() => setZoom(0.12)} aria-label="Zoom in">+</button><button onClick={() => setZoom(-0.12)} aria-label="Zoom out">−</button><button onClick={() => setView({ x: 0, y: 0, zoom: 0.82 })}>Fit</button><button onClick={() => setView({ x: 0, y: 0, zoom: 0.82 })}>Reset</button></div></header>
-    <div className="mission-control-agent-viewport" onWheel={(event) => { event.preventDefault(); setZoom(event.deltaY < 0 ? 0.08 : -0.08); }}>
-      <svg viewBox="0 0 1400 700" role="img" aria-label={`${agent.name} connected components`} onPointerDown={(event) => { if ((event.target as Element).closest(".mission-control-agent-node")) return; canvasPan.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const active = canvasPan.current; if (!active || active.pointerId !== event.pointerId) return; const deltaX = (event.clientX - active.x) / view.zoom; const deltaY = (event.clientY - active.y) / view.zoom; active.x = event.clientX; active.y = event.clientY; setView((current) => ({ ...current, x: current.x + deltaX, y: current.y + deltaY })); }} onPointerUp={() => { canvasPan.current = null; }} onPointerCancel={() => { canvasPan.current = null; }}>
-        <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
-          <g className="mission-control-agent-layer-labels"><text x="130" y="42">Timeliness</text><text x="470" y="42">Data Objects</text><text className="data-group" x="315" y="67">Policies</text><text className="data-group" x="470" y="67">General</text><text className="data-group" x="620" y="67">Mission Surface</text><text x="820" y="42">Agentic Q&amp;A</text><text x="1040" y="42">Agentic Workflow</text><text x="1250" y="42">Chat</text></g>
-          <g className="mission-control-agent-edges">{agent.edges.map(([sourceId, targetId]) => { const source = byId.get(sourceId); const target = byId.get(targetId); if (!source || !target) return null; return <line key={`${sourceId}-${targetId}`} className={sourceId === selectedNodeId || targetId === selectedNodeId ? "is-related" : ""} x1={source.x} y1={source.y} x2={target.x} y2={target.y} />; })}</g>
-          {nodes.map((node, index) => <g key={node.id} className={`mission-control-agent-node ${node.id === selectedNodeId ? "is-selected" : related.has(node.id) ? "is-related" : selectedNodeId ? "is-muted" : ""}`} transform={`translate(${node.x ?? 0} ${node.y ?? 0})`} role="button" tabIndex={0} aria-pressed={node.id === selectedNodeId} aria-label={`Inspect ${node.label}`} onPointerDown={(event) => startDrag(event, node.id)} onPointerMove={moveDrag} onPointerUp={() => { drag.current = null; }} onClick={() => onSelect(node.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(node.id); } }} style={{ "--node-delay": `${index * 35}ms` } as React.CSSProperties}>
-            <circle className="mission-control-agent-hit" r={node.radius + 13} /><circle className="mission-control-agent-halo" r={node.radius + 7} /><circle className="mission-control-agent-ring" r={node.radius} /><circle className="mission-control-agent-core" r={node.radius - 5} /><text className="mission-control-agent-label" y={node.radius + 19}>{fixtureLabel(node.label)}</text><text className="mission-control-agent-type" y={node.radius + 33}>{node.type.replace(" capability", "").replace(" / workflow", "")}</text>
-          </g>)}
-        </g>
-      </svg>
-      <div className="mission-control-agent-legend"><span>Experience</span><span>Capabilities</span><span>Context & models</span><span>Selected relationships</span></div>
-    </div>
-  </section>;
+  const endDrag = () => {
+    const active = drag.current;
+    const node = active
+      ? simulationRef.current?.nodes().find((item) => item.id === active.id)
+      : null;
+    if (node) {
+      node.fx = null;
+      node.fy = null;
+      simulationRef.current?.alpha(0.3).restart();
+    }
+    drag.current = null;
+  };
+  return (
+    <section
+      className="mission-control-agent-network"
+      aria-label={`${agent.name} Mission Control network`}
+    >
+      <header>
+        <div>
+          <span className="ab-kicker">AGENT NETWORK</span>
+          <strong>{agent.name}</strong>
+          <small>
+            Timeliness → Data Objects → Agentic Q&amp;A → Agentic Workflow →
+            Chat
+          </small>
+        </div>
+        <div className="mission-control-actions">
+          <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
+            +
+          </button>
+          <button onClick={() => setZoom(-0.12)} aria-label="Zoom out">
+            −
+          </button>
+          <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>Fit</button>
+          <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>
+            Reset
+          </button>
+        </div>
+      </header>
+      <div
+        className="mission-control-agent-viewport"
+        onWheel={(event) => {
+          event.preventDefault();
+          setZoom(event.deltaY < 0 ? 0.08 : -0.08);
+        }}
+      >
+        <svg
+          viewBox={`0 0 1400 ${worldHeight}`}
+          role="img"
+          aria-label={`${agent.name} connected components`}
+          onPointerDown={(event) => {
+            if (
+              (event.target as Element).closest(".mission-control-agent-node")
+            )
+              return;
+            canvasPan.current = {
+              pointerId: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const active = canvasPan.current;
+            if (!active || active.pointerId !== event.pointerId) return;
+            const deltaX = (event.clientX - active.x) / view.zoom;
+            const deltaY = (event.clientY - active.y) / view.zoom;
+            active.x = event.clientX;
+            active.y = event.clientY;
+            setView((current) => ({
+              ...current,
+              x: current.x + deltaX,
+              y: current.y + deltaY,
+            }));
+          }}
+          onPointerUp={() => {
+            canvasPan.current = null;
+          }}
+          onPointerCancel={() => {
+            canvasPan.current = null;
+          }}
+        >
+          <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
+            <g className="mission-control-agent-layer-labels">
+              <text x="115" y="42">
+                Timeliness
+              </text>
+              <text className="data-group" x="115" y="64">
+                General · Date &amp; Time
+              </text>
+              <text x="485" y="42">
+                Data Objects
+              </text>
+              <text className="data-group" x="285" y="67">
+                Policies
+              </text>
+              <text className="data-group" x="420" y="67">
+                General
+              </text>
+              <text className="data-group" x="617" y="67">
+                Mission Surface
+              </text>
+              <text x="880" y="42">
+                Agentic Q&amp;A
+              </text>
+              <text x="1090" y="42">
+                Agentic Workflow
+              </text>
+              <text x="1280" y="42">
+                Chat
+              </text>
+            </g>
+            <g className="mission-control-agent-edges">
+              {agent.edges.map(([sourceId, targetId]) => {
+                const source = byId.get(sourceId);
+                const target = byId.get(targetId);
+                if (!source || !target) return null;
+                const sourceStep = executionPath.indexOf(sourceId);
+                const targetStep = executionPath.indexOf(targetId);
+                const executed = sourceStep >= 0 && targetStep >= 0;
+                return (
+                  <line
+                    key={`${sourceId}-${targetId}`}
+                    className={`${sourceId === selectedNodeId || targetId === selectedNodeId ? "is-related" : ""} ${executed ? "is-executed" : ""}`}
+                    x1={source.x}
+                    y1={source.y}
+                    x2={target.x}
+                    y2={target.y}
+                  />
+                );
+              })}
+            </g>
+            {nodes.map((node) => (
+              <g
+                key={node.id}
+                className={`mission-control-agent-node ${node.id === selectedNodeId ? "is-selected" : related.has(node.id) ? "is-related" : selectedNodeId ? "is-muted" : ""} ${executionPath.includes(node.id) ? "is-executed" : ""}`}
+                transform={`translate(${node.x ?? 0} ${node.y ?? 0})`}
+                role="button"
+                tabIndex={0}
+                aria-pressed={node.id === selectedNodeId}
+                aria-label={`Inspect ${node.label}`}
+                onPointerDown={(event) => startDrag(event, node.id)}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                onClick={() => onSelect(node.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(node.id);
+                  }
+                }}
+              >
+                <circle
+                  className="mission-control-agent-hit"
+                  r={node.radius + 13}
+                />
+                <circle
+                  className="mission-control-agent-halo"
+                  r={node.radius + 7}
+                />
+                <circle
+                  className="mission-control-agent-ring"
+                  r={node.radius}
+                />
+                <circle
+                  className="mission-control-agent-core"
+                  r={node.radius - 5}
+                />
+                <text
+                  className="mission-control-agent-label"
+                  y={node.radius + 18}
+                >
+                  {labelsFor(node.label).map((line, lineIndex) => (
+                    <tspan key={line} x="0" dy={lineIndex === 0 ? 0 : 13}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+                <text
+                  className="mission-control-agent-type"
+                  y={node.radius + 18 + labelsFor(node.label).length * 13}
+                >
+                  {node.type
+                    .replace(" capability", "")
+                    .replace(" / workflow", "")}
+                </text>
+              </g>
+            ))}
+          </g>
+        </svg>
+        <div className="mission-control-agent-legend">
+          <span>Experience</span>
+          <span>Capabilities</span>
+          <span>Context & models</span>
+          <span>Selected relationships</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function NetworkLayerFilters({
@@ -1985,7 +2701,7 @@ function NetworkInspectorPanel({
 }) {
   const isPortfolio = agentName === "Portfolio Navigator";
   const capability = isPortfolio ? "Portfolio Health" : "RAID Analysis";
-  const workflow = isPortfolio ? "Decision Brief" : "Escalation Intake";
+  const workflow = isPortfolio ? "Decision Brief" : "Create a Mission";
   const dataObjectOptions = isPortfolio
     ? [
         { id: "mission", label: "Portfolio" },
@@ -1994,7 +2710,7 @@ function NetworkInspectorPanel({
       ]
     : [
         { id: "mission", label: "Mission" },
-        { id: "raid", label: "RAID Items" },
+        { id: "raid", label: "RAID" },
         { id: "chat-history", label: "Chat History" },
       ];
   const baseDescription =
@@ -2339,6 +3055,7 @@ function AgentChat({
   setInput,
   send,
   hasExecution,
+  trace,
   clearExecution,
   requestFeedback,
   canEndConversation,
@@ -2357,6 +3074,7 @@ function AgentChat({
   setInput: (value: string) => void;
   send: () => void;
   hasExecution: boolean;
+  trace: string[];
   clearExecution: () => void;
   requestFeedback: () => void;
   canEndConversation: boolean;
@@ -2379,12 +3097,25 @@ function AgentChat({
         <i>Fixture</i>
       </div>
       {hasExecution && (
-        <div className="execution-status">
-          <span>Latest execution highlighted</span>
-          <button type="button" onClick={clearExecution}>
-            Clear trace
-          </button>
-        </div>
+        <>
+          <div className="execution-status">
+            <span>Latest execution highlighted</span>
+            <button type="button" onClick={clearExecution}>
+              Clear trace
+            </button>
+          </div>
+          <details className="chat-trace">
+            <summary>View Trace</summary>
+            <ol>
+              {trace.map((stage, index) => (
+                <li key={`${stage}-${index}`}>{stage}</li>
+              ))}
+            </ol>
+            <small>
+              Structured operational trace only · no hidden chain-of-thought.
+            </small>
+          </details>
+        </>
       )}
       <div
         className="agent-chat-history"
@@ -2518,11 +3249,11 @@ function Overview({ goTo }: { goTo: (page: Page) => void }) {
           aria-label="Four layer operating model"
         >
           <b>1</b>
-          <span>Knowledge</span>
+          <span>Inputs · Timeliness & Data Objects</span>
           <b>2</b>
-          <span>Capabilities</span>
+          <span>Process · Agentic Q&A & Forms</span>
           <b>3</b>
-          <span>Conversation</span>
+          <span>Output · Chat</span>
           <b className="layer-four">4</b>
           <span>Feedback & improvement</span>
         </div>
