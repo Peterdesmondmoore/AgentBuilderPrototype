@@ -2217,10 +2217,10 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      data: 187,
-      question: 562,
-      workflow: 937,
-      interactions: 1312,
+      interactions: 187,
+      workflow: 562,
+      question: 937,
+      data: 1312,
     })[laneFor(node)] ?? 1312;
   const widthFor = () => 250;
   const heightFor = () => 48;
@@ -2250,7 +2250,7 @@ function MissionControlAgentNetwork({
     (typeof dataGroups)[number],
     { top: number; height: number; label: string }
   >();
-  let dataCursor = 128;
+  let dataCursor = 170;
   dataGroups.forEach((group) => {
     const members = groupedDataNodes.get(group) ?? [];
     const top = dataCursor - 50;
@@ -2284,7 +2284,7 @@ function MissionControlAgentNetwork({
     if (laneFor(node) === "data") return dataPositions.get(node.id) ?? 128;
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
-    return 128 + index * 82;
+    return 170 + index * 82;
   };
 
   useEffect(() => {
@@ -2301,10 +2301,10 @@ function MissionControlAgentNetwork({
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const areaOrder: Record<ReturnType<typeof laneFor>, number> = {
-    data: 0,
-    question: 1,
-    workflow: 2,
-    interactions: 3,
+    interactions: 0,
+    workflow: 1,
+    question: 2,
+    data: 3,
   };
   const directedEdges = agent.edges
     .filter(([from, to]) => byId.has(from) && byId.has(to))
@@ -2428,31 +2428,31 @@ function MissionControlAgentNetwork({
             </defs>
             <g className="mission-control-agent-stage-bands" aria-hidden="true">
               <rect
-                className="area-data"
-                x="8"
-                y="10"
-                width="362"
-                height={worldHeight - 20}
-              />
-              <rect
-                className="area-question"
-                x="380"
-                y="10"
-                width="362"
+                className="area-interactions"
+                x="0"
+                y="0"
+                width="375"
                 height={worldHeight - 20}
               />
               <rect
                 className="area-workflow"
-                x="752"
-                y="10"
-                width="362"
+                x="375"
+                y="0"
+                width="375"
                 height={worldHeight - 20}
               />
               <rect
-                className="area-interactions"
-                x="1124"
-                y="10"
-                width="362"
+                className="area-question"
+                x="750"
+                y="0"
+                width="375"
+                height={worldHeight - 20}
+              />
+              <rect
+                className="area-data"
+                x="1125"
+                y="0"
+                width="375"
                 height={worldHeight - 20}
               />
             </g>
@@ -2463,17 +2463,34 @@ function MissionControlAgentNetwork({
                 return (
                   <g key={group}>
                     <rect
-                      x="45"
+                      x="1145"
                       y={bounds.top}
-                      width="284"
+                      width="335"
                       height={bounds.height}
                     />
-                    <text x="58" y={bounds.top + 20}>
+                    <text x="1158" y={bounds.top + 20}>
                       {bounds.label}
                     </text>
                   </g>
                 );
               })}
+            </g>
+            <g
+              className="mission-control-agent-layer-labels"
+              aria-hidden="true"
+            >
+              <text className="area-interactions" x="187" y="52">
+                Interactions
+              </text>
+              <text className="area-workflow" x="562" y="52">
+                Workflow
+              </text>
+              <text className="area-question" x="937" y="52">
+                Q&amp;A
+              </text>
+              <text className="area-data" x="1312" y="52">
+                Objects
+              </text>
             </g>
             <g className="mission-control-agent-edges">
               {agent.edges.map(([sourceId, targetId]) => {
