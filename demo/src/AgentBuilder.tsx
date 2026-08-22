@@ -31,6 +31,18 @@ type AgentDraft = {
   routingTargets: string[];
   qaState: "Active" | "Inactive";
   qaVersion: string;
+  dataObjectConfigurations: Record<string, DataObjectConfiguration>;
+};
+type DataObjectConfiguration = {
+  name: string;
+  group:
+    | "General"
+    | "Conversation"
+    | "Policies"
+    | "Mission Surface"
+    | "Agent Builder";
+  purpose: string;
+  state: "Active" | "Inactive";
 };
 type AgentFixtureNetwork = {
   id: string;
@@ -693,6 +705,7 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
       routingTargets: ["qa", "form"],
       qaState: "Active",
       qaVersion: "Draft v0.4",
+      dataObjectConfigurations: {},
     },
   },
   {
@@ -767,6 +780,7 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
       routingTargets: ["qa", "form"],
       qaState: "Active",
       qaVersion: "Draft v0.2",
+      dataObjectConfigurations: {},
     },
   },
 ];
@@ -1362,6 +1376,7 @@ function AgentNetwork({
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("agent-builder");
   const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [networkFilterNodeId, setNetworkFilterNodeId] = useState("");
   const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const configuredAgent =
     agentNetworks.find((agent) => agent.id === selectedAgentId) ??
@@ -1370,6 +1385,32 @@ function AgentNetwork({
     () => layoutAgentNetwork(configuredAgent),
     [configuredAgent],
   );
+  const nodeFilterGroups = [
+    {
+      label: "Agentic interactions",
+      nodes: selectedAgent.nodes.filter((node) => node.type === "Chat"),
+    },
+    {
+      label: "Agentic workflow",
+      nodes: selectedAgent.nodes.filter(
+        (node) => node.type === "Form / workflow",
+      ),
+    },
+    {
+      label: "Agentic Q&A",
+      nodes: selectedAgent.nodes.filter(
+        (node) => node.type === "Q&A capability" || node.type === "Capability",
+      ),
+    },
+    {
+      label: "Data objects",
+      nodes: selectedAgent.nodes.filter((node) =>
+        ["Data Object", "Knowledge source", "System Context"].includes(
+          node.type,
+        ),
+      ),
+    },
+  ];
   const visibleAgents = agentNetworks.filter((agent) =>
     agent.name.toLowerCase().includes(agentFilter.trim().toLowerCase()),
   );
@@ -1412,19 +1453,11 @@ function AgentNetwork({
   const relationships = [...relatedNodeIds]
     .filter((id) => id !== selectedNode.id)
     .map((id) => nodeById.get(id)!.label);
-  const changeZoom = (amount: number) =>
-    setView((current) => ({
-      ...current,
-      scale: Math.min(
-        1.7,
-        Math.max(0.55, Number((current.scale + amount).toFixed(2))),
-      ),
-    }));
-  const fitNetwork = () => setView({ scale: 0.78, x: 105, y: 26 });
   const resetView = () => setView({ scale: 1, x: 0, y: 0 });
   const selectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
     setSelectedNodeId("");
+    setNetworkFilterNodeId("");
     setSelectedFeedbackId(null);
     setChatInput("");
     setExecutionPath([]);
@@ -1434,16 +1467,34 @@ function AgentNetwork({
     setFeedbackEvidence(null);
     resetView();
   };
+  const filterToNode = (nodeId: string) => {
+    setNetworkFilterNodeId(nodeId);
+    setSelectedNodeId(nodeId);
+  };
+  const clearNetworkFilter = () => {
+    setNetworkFilterNodeId("");
+  };
   const updateDraft = (changes: Partial<AgentDraft>) =>
     setAgentNetworks((current) =>
       current.map((agent) => {
         if (agent.id !== selectedAgent.id) return agent;
         const draft = { ...agent.draft, ...changes };
-        let nodes = agent.nodes.map((node) =>
-          node.id === "qa"
-            ? { ...node, label: draft.qaName, detail: draft.qaDescription }
-            : node,
-        );
+        let nodes = agent.nodes.map((node) => {
+          if (node.id === "qa")
+            return {
+              ...node,
+              label: draft.qaName,
+              detail: draft.qaDescription,
+            };
+          const configuration = draft.dataObjectConfigurations[node.id];
+          return configuration && node.type === "Data Object"
+            ? {
+                ...node,
+                label: configuration.name,
+                detail: configuration.purpose,
+              }
+            : node;
+        });
         const hasChatHistory = draft.dataObjects.includes("chat-history");
         if (hasChatHistory && !nodes.some((node) => node.id === "chat-history"))
           nodes = [
@@ -1918,46 +1969,40 @@ function AgentNetwork({
             <strong>{selectedAgent.name}</strong>
             <small>{selectedAgent.summary}</small>
           </div>
-        </div>
-        <div className="network-toolbar">
-          <div>
-            <span className="ab-kicker">AGENT ASSEMBLY</span>
-            <strong>
-              {selectedAgent.name} · {selectedAgent.summary}
-            </strong>
+          <div
+            className="network-node-filter-dropdowns"
+            aria-label="Filter nodes"
+          >
+            {nodeFilterGroups.map((group) => (
+              <details key={group.label}>
+                <summary>{group.label}</summary>
+                <div>
+                  {group.nodes.map((node) => (
+                    <button
+                      key={node.id}
+                      type="button"
+                      className={
+                        networkFilterNodeId === node.id ? "is-selected" : ""
+                      }
+                      onClick={() => filterToNode(node.id)}
+                    >
+                      {node.label}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            ))}
+            {networkFilterNodeId && (
+              <button type="button" onClick={clearNetworkFilter}>
+                Clear filter
+              </button>
+            )}
           </div>
-          <div className="network-controls" aria-label="Network controls">
-            <button onClick={() => changeZoom(-0.12)} aria-label="Zoom out">
-              −
-            </button>
-            <button onClick={() => changeZoom(0.12)} aria-label="Zoom in">
-              +
-            </button>
-            <button onClick={fitNetwork}>Fit to network</button>
-            <button onClick={resetView}>Reset view</button>
-          </div>
-        </div>
-        <div className="network-legend">
-          <span>
-            <i className="agent-dot" /> Selected agent
-          </span>
-          <span>
-            <i className="capability-dot" /> Capability
-          </span>
-          <span>
-            <i className="context-dot" /> Context
-          </span>
-          <span>
-            <i className="model-dot" /> Model
-          </span>
-          <small>
-            Drag anywhere on the canvas to pan · Select any node for details ·{" "}
-            {Math.round(view.scale * 100)}%
-          </small>
         </div>
         <MissionControlAgentNetwork
           agent={selectedAgent}
           selectedNodeId={selectedNodeId}
+          filterNodeId={networkFilterNodeId}
           executionPath={executionPath}
           onSelect={setSelectedNodeId}
         />
@@ -2114,32 +2159,21 @@ function AgentNetwork({
 }
 
 type MissionControlAgentNode = NetworkNode & { width: number; height: number };
-type AgentNetworkArea =
-  "All" | "timeliness" | "data" | "question" | "workflow" | "interactions";
-
-const agentNetworkAreas: Array<{ id: AgentNetworkArea; label: string }> = [
-  { id: "All", label: "All areas" },
-  { id: "timeliness", label: "Timeliness" },
-  { id: "data", label: "Data Objects" },
-  { id: "question", label: "Agentic Q&A" },
-  { id: "workflow", label: "Workflow" },
-  { id: "interactions", label: "Interactions" },
-];
-
 function MissionControlAgentNetwork({
   agent,
   selectedNodeId,
+  filterNodeId,
   executionPath,
   onSelect,
 }: {
   agent: AgentFixtureNetwork;
   selectedNodeId: string;
+  filterNodeId: string;
   executionPath: string[];
   onSelect: (id: string) => void;
 }) {
   const [nodes, setNodes] = useState<MissionControlAgentNode[]>([]);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
-  const [activeArea, setActiveArea] = useState<AgentNetworkArea>("All");
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
   const [wireframeFeedback, setWireframeFeedback] = useState("");
   const [feedbackLogged, setFeedbackLogged] = useState(false);
@@ -2175,11 +2209,6 @@ function MissionControlAgentNetwork({
     ["Data Object", "Knowledge source", "System Context"].includes(node.type);
   const dataGroups = ["policies", "general", "mission-surface"] as const;
   const laneFor = (node: NetworkNode) => {
-    if (
-      node.label === "Current Date and Time" ||
-      node.label === "Current Date & Time"
-    )
-      return "timeliness";
     if (isDataNode(node)) return "data";
     if (node.type === "Q&A capability" || node.type === "Capability")
       return "question";
@@ -2188,12 +2217,11 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      timeliness: 151,
-      data: 449,
-      question: 747,
-      workflow: 1045,
-      interactions: 1343,
-    })[laneFor(node)] ?? 1343;
+      data: 151,
+      question: 449,
+      workflow: 747,
+      interactions: 1045,
+    })[laneFor(node)] ?? 1045;
   const widthFor = () => 196;
   const heightFor = () => 44;
   const labelsFor = (label: string) => {
@@ -2249,7 +2277,7 @@ function MissionControlAgentNetwork({
         node,
       ]),
     );
-  const worldWidth = 1500;
+  const worldWidth = 1200;
   const worldHeight = Math.max(860, dataCursor + 70);
   const canvasHeight = worldHeight;
   const targetYFor = (node: NetworkNode) => {
@@ -2272,12 +2300,11 @@ function MissionControlAgentNetwork({
   }, [agent, worldHeight]);
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const areaOrder: Record<Exclude<AgentNetworkArea, "All">, number> = {
-    timeliness: 0,
-    data: 1,
-    question: 2,
-    workflow: 3,
-    interactions: 4,
+  const areaOrder: Record<ReturnType<typeof laneFor>, number> = {
+    data: 0,
+    question: 1,
+    workflow: 2,
+    interactions: 3,
   };
   const directedEdges = agent.edges
     .filter(([from, to]) => byId.has(from) && byId.has(to))
@@ -2316,17 +2343,14 @@ function MissionControlAgentNetwork({
         ...traceLineage(selectedNodeId, "downstream"),
       ])
     : new Set<string>();
-  const filteredLineage =
-    activeArea === "All"
-      ? null
-      : new Set(
-          nodes
-            .filter((node) => laneFor(node) === activeArea)
-            .flatMap((node) => [
-              ...traceLineage(node.id, "upstream"),
-              ...traceLineage(node.id, "downstream"),
-            ]),
-        );
+  const filteredLineage = filterNodeId
+    ? new Set([
+        filterNodeId,
+        ...agent.edges
+          .filter(([from, to]) => from === filterNodeId || to === filterNodeId)
+          .flatMap(([from, to]) => [from, to]),
+      ])
+    : null;
   const visibleNodeIds = new Set(
     nodes
       .filter((node) => !filteredLineage || filteredLineage.has(node.id))
@@ -2344,58 +2368,11 @@ function MissionControlAgentNetwork({
         .filter((node): node is MissionControlAgentNode => Boolean(node))
         .map((node) => node.label)
     : [];
-  const chooseArea = (area: AgentNetworkArea) => {
-    setActiveArea(area);
-    onSelect("");
-  };
-  const setZoom = (amount: number) =>
-    setView((current) => ({
-      ...current,
-      zoom: Math.max(
-        0.4,
-        Math.min(2.2, Number((current.zoom + amount).toFixed(2))),
-      ),
-    }));
-  const fitWidth = () => setView({ x: 0, y: 0, zoom: 1 });
   return (
     <section
       className="mission-control-agent-network"
       aria-label={`${agent.name} Mission Control network`}
     >
-      <header>
-        <div>
-          <span className="ab-kicker">AGENT NETWORK</span>
-          <strong>{agent.name}</strong>
-        </div>
-        <div className="mission-control-actions">
-          <button onClick={() => setZoom(-0.12)} aria-label="Zoom out">
-            −
-          </button>
-          <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
-            +
-          </button>
-          <button onClick={fitWidth}>Fit width</button>
-          <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>
-            Reset
-          </button>
-        </div>
-      </header>
-      <div
-        className="mission-control-agent-filters"
-        aria-label="Filter network areas"
-      >
-        {agentNetworkAreas.map((area) => (
-          <button
-            key={area.id}
-            type="button"
-            className={`area-${area.id.toLowerCase()} ${activeArea === area.id ? "is-active" : ""}`}
-            aria-pressed={activeArea === area.id}
-            onClick={() => chooseArea(area.id)}
-          >
-            {area.label}
-          </button>
-        ))}
-      </div>
       <div className="mission-control-agent-viewport">
         <svg
           viewBox={`0 0 ${worldWidth} ${worldHeight}`}
@@ -2451,36 +2428,29 @@ function MissionControlAgentNetwork({
             </defs>
             <g className="mission-control-agent-stage-bands" aria-hidden="true">
               <rect
-                className="area-timeliness"
+                className="area-data"
                 x="8"
                 y="10"
                 width="286"
                 height={worldHeight - 20}
               />
               <rect
-                className="area-data"
+                className="area-question"
                 x="306"
                 y="10"
                 width="286"
                 height={worldHeight - 20}
               />
               <rect
-                className="area-question"
+                className="area-workflow"
                 x="604"
                 y="10"
                 width="286"
                 height={worldHeight - 20}
               />
               <rect
-                className="area-workflow"
-                x="902"
-                y="10"
-                width="286"
-                height={worldHeight - 20}
-              />
-              <rect
                 className="area-interactions"
-                x="1200"
+                x="902"
                 y="10"
                 width="286"
                 height={worldHeight - 20}
@@ -2493,34 +2463,17 @@ function MissionControlAgentNetwork({
                 return (
                   <g key={group}>
                     <rect
-                      x="336"
+                      x="38"
                       y={bounds.top}
                       width="226"
                       height={bounds.height}
                     />
-                    <text x="348" y={bounds.top + 20}>
+                    <text x="50" y={bounds.top + 20}>
                       {bounds.label}
                     </text>
                   </g>
                 );
               })}
-            </g>
-            <g className="mission-control-agent-layer-labels">
-              <text className="area-timeliness" x="151" y="40">
-                Timeliness
-              </text>
-              <text className="area-data" x="449" y="40">
-                Data Objects
-              </text>
-              <text className="area-question" x="747" y="40">
-                Agentic Q&amp;A
-              </text>
-              <text className="area-workflow" x="1045" y="40">
-                Agentic Workflow
-              </text>
-              <text className="area-interactions" x="1343" y="40">
-                Interactions
-              </text>
             </g>
             <g className="mission-control-agent-edges">
               {agent.edges.map(([sourceId, targetId]) => {
@@ -2670,6 +2623,7 @@ function MissionControlAgentNetwork({
         <NetworkNodeDrawer
           node={expandedNode}
           draft={agent.draft}
+          executionPath={executionPath}
           relationships={expandedRelationships}
           feedback={wireframeFeedback}
           feedbackLogged={feedbackLogged}
@@ -2685,6 +2639,7 @@ function MissionControlAgentNetwork({
 function NetworkNodeDrawer({
   node,
   draft,
+  executionPath,
   relationships,
   feedback,
   feedbackLogged,
@@ -2694,6 +2649,7 @@ function NetworkNodeDrawer({
 }: {
   node: NetworkNode;
   draft: AgentDraft;
+  executionPath: string[];
   relationships: string[];
   feedback: string;
   feedbackLogged: boolean;
@@ -2704,6 +2660,10 @@ function NetworkNodeDrawer({
   const isInteractions = node.type === "Chat";
   const workflowConfiguration =
     node.type === "Form / workflow" ? workflowConfigurationFor(node) : null;
+  const dataObjectConfiguration =
+    node.type === "Data Object"
+      ? dataObjectConfigurationFor(node, draft)
+      : null;
   const qaConfiguration =
     node.type === "Q&A capability" ? qaConfigurationFor(node, draft) : null;
   return (
@@ -2790,6 +2750,15 @@ function NetworkNodeDrawer({
         <WorkflowConfigurationFields configuration={workflowConfiguration} />
       ) : qaConfiguration ? (
         <QaConfigurationFields configuration={qaConfiguration} />
+      ) : dataObjectConfiguration ? (
+        <DataObjectConfigurationFields
+          configuration={dataObjectConfiguration}
+          executionPath={executionPath}
+          node={node}
+          selectedHorizon={
+            node.id === "chat-history" ? "Last 7 Days" : draft.timeHorizon
+          }
+        />
       ) : (
         <section className="expanded-node-detail">
           <dl>
@@ -3049,6 +3018,324 @@ function QaConfigurationFields({
   );
 }
 
+type PermittedTimeHorizon = {
+  name: string;
+  description: string;
+  retrievalMeaning: string;
+  isDefault: boolean;
+};
+
+function dataObjectConfigurationFor(
+  node: NetworkNode,
+  draft: AgentDraft,
+): DataObjectConfiguration {
+  const lowerDetail = node.detail.toLowerCase();
+  const group: DataObjectConfiguration["group"] =
+    node.id === "chat-history"
+      ? "Conversation"
+      : lowerDetail.includes("policies")
+        ? "Policies"
+        : lowerDetail.includes("agent builder") ||
+            node.label === "Data Object Catalogue"
+          ? "Agent Builder"
+          : lowerDetail.includes("general")
+            ? "General"
+            : "Mission Surface";
+  return (
+    draft.dataObjectConfigurations[node.id] ?? {
+      name: node.label,
+      group,
+      purpose: node.detail.includes(" · ")
+        ? node.detail.split(" · ").slice(1).join(" · ")
+        : node.detail,
+      state: "Active",
+    }
+  );
+}
+
+function permittedTimeHorizonsFor(
+  configuration: DataObjectConfiguration,
+  selectedHorizon: string,
+): PermittedTimeHorizon[] {
+  if (configuration.group === "Conversation")
+    return [
+      {
+        name: "Current conversation",
+        description: "Messages exchanged in the active Interaction.",
+        retrievalMeaning: "Retrieve the current conversational turn sequence.",
+        isDefault: selectedHorizon !== "Last 7 Days",
+      },
+      {
+        name: "Last 7 Days",
+        description: "Recent conversation evidence available to the user.",
+        retrievalMeaning:
+          "Retrieve eligible messages from the preceding seven days.",
+        isDefault: selectedHorizon === "Last 7 Days",
+      },
+    ];
+  return [
+    {
+      name: "Current reporting period",
+      description: "The active reporting cycle for the selected agent.",
+      retrievalMeaning:
+        "Retrieve evidence within the current reporting period.",
+      isDefault: selectedHorizon === "Current reporting period",
+    },
+    {
+      name: "Last 7 Days",
+      description: "The most recent operational context.",
+      retrievalMeaning:
+        "Retrieve evidence created or updated in the previous seven days.",
+      isDefault: selectedHorizon === "Last 7 Days",
+    },
+    {
+      name: "Current quarter",
+      description: "The active quarterly delivery window.",
+      retrievalMeaning: "Retrieve evidence from the current calendar quarter.",
+      isDefault: selectedHorizon === "Current quarter",
+    },
+  ];
+}
+
+function dataObjectExecutionFor(
+  node: NetworkNode,
+  selectedHorizon: string,
+  executionPath: string[],
+) {
+  const nodeIndex = executionPath.indexOf(node.id);
+  const callerId = nodeIndex > 0 ? executionPath[nodeIndex - 1] : null;
+  const caller =
+    callerId === "qa"
+      ? "RAID Analysis"
+      : callerId === "form"
+        ? "Create a Mission"
+        : callerId?.includes("general-governed-data-lookup")
+          ? "General Governed Data Lookup"
+          : callerId
+            ? "Interactions"
+            : "Not used in the latest execution";
+  return {
+    caller,
+    selectedHorizon:
+      node.id === "chat-history" ? "Last 7 Days" : selectedHorizon,
+    timestamp:
+      nodeIndex >= 0 ? "22 Aug 2026, 10:42 AEST" : "No retrieval recorded",
+    raw: JSON.stringify(
+      {
+        source: node.label,
+        selectedHorizon:
+          node.id === "chat-history" ? "Last 7 Days" : selectedHorizon,
+        retrievedAt: nodeIndex >= 0 ? "2026-08-22T10:42:00+10:00" : null,
+        fixture: true,
+      },
+      null,
+      2,
+    ),
+  };
+}
+
+function DataObjectTimeliness({
+  configuration,
+  selectedHorizon,
+}: {
+  configuration: DataObjectConfiguration;
+  selectedHorizon: string;
+}) {
+  return (
+    <section className="data-object-timeliness" aria-label="Timeliness">
+      <h3>Timeliness</h3>
+      <span>Permitted Time Horizons</span>
+      <div className="data-object-horizon-list">
+        {permittedTimeHorizonsFor(configuration, selectedHorizon).map(
+          (horizon) => (
+            <article key={horizon.name}>
+              <b>{horizon.name}</b>
+              <p>{horizon.description}</p>
+              <small>{horizon.retrievalMeaning}</small>
+              <em>{horizon.isDefault ? "Default" : "Non-default"}</em>
+            </article>
+          ),
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DataObjectExecution({
+  node,
+  selectedHorizon,
+  executionPath,
+}: {
+  node: NetworkNode;
+  selectedHorizon: string;
+  executionPath: string[];
+}) {
+  const [showRaw, setShowRaw] = useState(false);
+  const execution = dataObjectExecutionFor(
+    node,
+    selectedHorizon,
+    executionPath,
+  );
+  return (
+    <section className="data-object-execution" aria-label="Latest execution">
+      <h3>Execution</h3>
+      <span>Latest use</span>
+      <dl>
+        <div>
+          <dt>Node that called the data object</dt>
+          <dd>{execution.caller}</dd>
+        </div>
+        <div>
+          <dt>Selected time horizon</dt>
+          <dd>{execution.selectedHorizon}</dd>
+        </div>
+        <div>
+          <dt>Retrieval timestamp</dt>
+          <dd>{execution.timestamp}</dd>
+        </div>
+      </dl>
+      <button type="button" onClick={() => setShowRaw((current) => !current)}>
+        {showRaw ? "Hide Raw" : "Raw"} view
+      </button>
+      {showRaw && <pre>{execution.raw}</pre>}
+    </section>
+  );
+}
+
+function DataObjectConfigurationFields({
+  node,
+  configuration,
+  executionPath,
+  selectedHorizon,
+}: {
+  node: NetworkNode;
+  configuration: DataObjectConfiguration;
+  executionPath: string[];
+  selectedHorizon: string;
+}) {
+  return (
+    <section
+      className="data-object-configuration-fields"
+      aria-label="Data Object configuration"
+    >
+      <div>
+        <span>Name</span>
+        <b>{configuration.name}</b>
+      </div>
+      <div>
+        <span>Group / Source</span>
+        <b>{configuration.group}</b>
+      </div>
+      <div>
+        <span>Purpose</span>
+        <p>{configuration.purpose}</p>
+      </div>
+      <div className="data-object-state">
+        <span>Active / Inactive</span>
+        <b>{configuration.state}</b>
+      </div>
+      <DataObjectTimeliness
+        configuration={configuration}
+        selectedHorizon={selectedHorizon}
+      />
+      <DataObjectExecution
+        node={node}
+        selectedHorizon={selectedHorizon}
+        executionPath={executionPath}
+      />
+    </section>
+  );
+}
+
+function DataObjectConfigurationEditor({
+  node,
+  configuration,
+  draft,
+  updateDraft,
+  executionPath,
+}: {
+  node: NetworkNode;
+  configuration: DataObjectConfiguration;
+  draft: AgentDraft;
+  updateDraft: (changes: Partial<AgentDraft>) => void;
+  executionPath: string[];
+}) {
+  const updateConfiguration = (changes: Partial<DataObjectConfiguration>) =>
+    updateDraft({
+      dataObjectConfigurations: {
+        ...draft.dataObjectConfigurations,
+        [node.id]: { ...configuration, ...changes },
+      },
+    });
+  const selectedHorizon =
+    node.id === "chat-history" ? "Last 7 Days" : draft.timeHorizon;
+  return (
+    <section
+      className="data-object-configuration-editor"
+      aria-label="Edit Data Object"
+    >
+      <label className="network-edit-field">
+        Name
+        <input
+          value={configuration.name}
+          onChange={(event) =>
+            updateConfiguration({ name: event.target.value })
+          }
+        />
+      </label>
+      <label className="network-edit-field">
+        Group / Source
+        <select
+          value={configuration.group}
+          onChange={(event) =>
+            updateConfiguration({
+              group: event.target.value as DataObjectConfiguration["group"],
+            })
+          }
+        >
+          <option>General</option>
+          <option>Conversation</option>
+          <option>Policies</option>
+          <option>Mission Surface</option>
+          <option>Agent Builder</option>
+        </select>
+      </label>
+      <label className="network-edit-field">
+        Purpose
+        <textarea
+          value={configuration.purpose}
+          onChange={(event) =>
+            updateConfiguration({ purpose: event.target.value })
+          }
+        />
+      </label>
+      <label className="network-edit-field">
+        Active / Inactive
+        <select
+          value={configuration.state}
+          onChange={(event) =>
+            updateConfiguration({
+              state: event.target.value as DataObjectConfiguration["state"],
+            })
+          }
+        >
+          <option>Active</option>
+          <option>Inactive</option>
+        </select>
+      </label>
+      <DataObjectTimeliness
+        configuration={configuration}
+        selectedHorizon={selectedHorizon}
+      />
+      <DataObjectExecution
+        node={node}
+        selectedHorizon={selectedHorizon}
+        executionPath={executionPath}
+      />
+    </section>
+  );
+}
+
 function QaConfigurationEditor({
   draft,
   isPortfolio,
@@ -3281,6 +3568,10 @@ function NetworkInspectorPanel({
   const workflow = isPortfolio ? "Decision Brief" : "Create a Mission";
   const workflowConfiguration =
     node.type === "Form / workflow" ? workflowConfigurationFor(node) : null;
+  const dataObjectConfiguration =
+    node.type === "Data Object"
+      ? dataObjectConfigurationFor(node, draft)
+      : null;
   const baseDescription =
     node.type === "Q&A capability"
       ? `Answers ${isPortfolio ? "portfolio health and decision" : "material delivery-risk"} questions using structured context.`
@@ -3301,12 +3592,6 @@ function NetworkInspectorPanel({
                     : "The selected agent coordinates chat, routing, capabilities and context.";
   const executionStatus = executionRole(node, executionPath);
   const description = `${baseDescription}${executionStatus ? ` Latest execution: participated — ${executionStatus}.` : executionPath.length ? " Not used in the latest execution." : ""}`;
-  const toggleDataObject = (id: string) =>
-    updateDraft({
-      dataObjects: draft.dataObjects.includes(id)
-        ? draft.dataObjects.filter((item) => item !== id)
-        : [...draft.dataObjects, id],
-    });
   const toggleRoute = (id: string) =>
     updateDraft({
       routingTargets: draft.routingTargets.includes(id)
@@ -3350,40 +3635,14 @@ function NetworkInspectorPanel({
           updateDraft={updateDraft}
         />
       )}
-      {node.type === "Data Object" && (
-        <>
-          <div className="inspector-group">
-            <span>Description</span>
-            <b>{node.detail}</b>
-          </div>
-          <div className="inspector-group">
-            <span>Capabilities consuming it</span>
-            <b>
-              {capability} · {workflow}
-            </b>
-          </div>
-          <label className="network-edit-field">
-            Configured scope
-            <select
-              value={draft.timeHorizon}
-              onChange={(event) =>
-                updateDraft({ timeHorizon: event.target.value })
-              }
-            >
-              <option>Current reporting period</option>
-              <option>Last 7 Days</option>
-              <option>Current quarter</option>
-            </select>
-          </label>
-          {node.id === "chat-history" && (
-            <button
-              className="remove-draft-link"
-              onClick={() => toggleDataObject("chat-history")}
-            >
-              Remove Chat History relationship
-            </button>
-          )}
-        </>
+      {dataObjectConfiguration && (
+        <DataObjectConfigurationEditor
+          node={node}
+          configuration={dataObjectConfiguration}
+          draft={draft}
+          updateDraft={updateDraft}
+          executionPath={executionPath}
+        />
       )}
       {node.type === "Model" && (
         <>
