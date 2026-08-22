@@ -1864,7 +1864,20 @@ function MissionControlAgentNetwork({
   const [view, setView] = useState({ x: 0, y: 0, zoom: 0.82 });
   const drag = useRef<{ id: string; pointerId: number; x: number; y: number } | null>(null);
   const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(null);
-  const columnFor = (node: NetworkNode) => node.type === "Chat" ? 120 : node.type === "Router" ? 300 : node.type === "Agent" ? 470 : ["Q&A capability", "Form / workflow", "Capability"].includes(node.type) ? 730 : node.type === "Response" ? 1250 : 1050;
+  const dataGroupFor = (node: NetworkNode) => {
+    const detail = node.detail.toLowerCase();
+    if (node.label === "Current Date and Time" || node.label === "Current Date & Time") return "general";
+    if (detail.startsWith("policies") || ["Company Data Isolation", "User-Authorised Access", "Information Sufficiency", "Facts and Suggestions", "Confirmation Before Action"].includes(node.label)) return "policies";
+    if (detail.startsWith("agent builder") || node.label === "Data Object Catalogue") return "general";
+    return "mission-surface";
+  };
+  const columnFor = (node: NetworkNode) => {
+    if (node.label === "Current Date and Time" || node.label === "Current Date & Time") return 130;
+    if (node.type === "Data Object" || node.type === "Knowledge source" || node.type === "System Context") return dataGroupFor(node) === "policies" ? 315 : dataGroupFor(node) === "general" ? 470 : 620;
+    if (node.type === "Q&A capability" || node.type === "Capability" || node.type === "Router" || node.type === "Agent") return 820;
+    if (node.type === "Form / workflow") return 1040;
+    return 1250;
+  };
   const radiusFor = (node: NetworkNode) => node.type === "Agent" ? 60 : node.type === "Chat" || node.type === "Router" || node.type === "Response" ? 40 : 47;
 
   useEffect(() => {
@@ -1906,9 +1919,10 @@ function MissionControlAgentNetwork({
     <div className="mission-control-agent-viewport" onWheel={(event) => { event.preventDefault(); setZoom(event.deltaY < 0 ? 0.08 : -0.08); }}>
       <svg viewBox="0 0 1400 700" role="img" aria-label={`${agent.name} connected components`} onPointerDown={(event) => { if ((event.target as Element).closest(".mission-control-agent-node")) return; canvasPan.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const active = canvasPan.current; if (!active || active.pointerId !== event.pointerId) return; const deltaX = (event.clientX - active.x) / view.zoom; const deltaY = (event.clientY - active.y) / view.zoom; active.x = event.clientX; active.y = event.clientY; setView((current) => ({ ...current, x: current.x + deltaX, y: current.y + deltaY })); }} onPointerUp={() => { canvasPan.current = null; }} onPointerCancel={() => { canvasPan.current = null; }}>
         <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
+          <g className="mission-control-agent-layer-labels"><text x="130" y="42">Timeliness</text><text x="470" y="42">Data Objects</text><text className="data-group" x="315" y="67">Policies</text><text className="data-group" x="470" y="67">General</text><text className="data-group" x="620" y="67">Mission Surface</text><text x="820" y="42">Agentic Q&amp;A</text><text x="1040" y="42">Agentic Workflow</text><text x="1250" y="42">Chat</text></g>
           <g className="mission-control-agent-edges">{agent.edges.map(([sourceId, targetId]) => { const source = byId.get(sourceId); const target = byId.get(targetId); if (!source || !target) return null; return <line key={`${sourceId}-${targetId}`} className={sourceId === selectedNodeId || targetId === selectedNodeId ? "is-related" : ""} x1={source.x} y1={source.y} x2={target.x} y2={target.y} />; })}</g>
           {nodes.map((node, index) => <g key={node.id} className={`mission-control-agent-node ${node.id === selectedNodeId ? "is-selected" : related.has(node.id) ? "is-related" : selectedNodeId ? "is-muted" : ""}`} transform={`translate(${node.x ?? 0} ${node.y ?? 0})`} role="button" tabIndex={0} aria-pressed={node.id === selectedNodeId} aria-label={`Inspect ${node.label}`} onPointerDown={(event) => startDrag(event, node.id)} onPointerMove={moveDrag} onPointerUp={() => { drag.current = null; }} onClick={() => onSelect(node.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(node.id); } }} style={{ "--node-delay": `${index * 35}ms` } as React.CSSProperties}>
-            <circle className="mission-control-agent-hit" r={node.radius + 13} /><circle className="mission-control-agent-halo" r={node.radius + 7} /><circle className="mission-control-agent-ring" r={node.radius} /><circle className="mission-control-agent-core" r={node.radius - 5} /><text className="mission-control-agent-type" y={-4}>{node.type.replace(" capability", "").replace(" / workflow", "")}</text><text className="mission-control-agent-label" y={14}>{fixtureLabel(node.label)}</text>
+            <circle className="mission-control-agent-hit" r={node.radius + 13} /><circle className="mission-control-agent-halo" r={node.radius + 7} /><circle className="mission-control-agent-ring" r={node.radius} /><circle className="mission-control-agent-core" r={node.radius - 5} /><text className="mission-control-agent-label" y={node.radius + 19}>{fixtureLabel(node.label)}</text><text className="mission-control-agent-type" y={node.radius + 33}>{node.type.replace(" capability", "").replace(" / workflow", "")}</text>
           </g>)}
         </g>
       </svg>
