@@ -12,6 +12,8 @@
     "validate:screenshots": "node ../scripts/validate-screenshots.mjs"
   },
   "dependencies": {
+    "@types/d3": "^7.4.3",
+    "d3": "^7.9.0",
     "react": "latest",
     "react-dom": "latest"
   },
