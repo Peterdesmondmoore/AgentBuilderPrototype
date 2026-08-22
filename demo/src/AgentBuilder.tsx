@@ -114,27 +114,10 @@ const networkNodes: NetworkNode[] = [
   {
     id: "chat",
     type: "Chat",
-    label: "Mission Chat",
+    label: "Interactions",
     detail: "User conversation",
     x: 90,
     y: 230,
-  },
-  {
-    id: "router",
-    type: "Router",
-    label: "Intent Router",
-    detail: "93% confidence",
-    x: 270,
-    y: 230,
-  },
-  {
-    id: "agent",
-    type: "Agent",
-    label: "Mission Surface",
-    detail: "Selected agent",
-    x: 455,
-    y: 230,
-    selected: true,
   },
   {
     id: "qa",
@@ -176,36 +159,14 @@ const networkNodes: NetworkNode[] = [
     x: 850,
     y: 305,
   },
-  {
-    id: "model",
-    type: "Model",
-    label: "gpt-5",
-    detail: "Response reasoning",
-    x: 455,
-    y: 430,
-  },
-  {
-    id: "response",
-    type: "Response",
-    label: "Delivery response",
-    detail: "Chat output",
-    x: 650,
-    y: 470,
-  },
 ];
 
 const networkEdges: Array<[string, string]> = [
-  ["chat", "router"],
-  ["router", "agent"],
-  ["agent", "qa"],
-  ["agent", "form"],
+  ["chat", "qa"],
+  ["chat", "form"],
   ["qa", "mission"],
   ["qa", "raid"],
   ["qa", "knowledge"],
-  ["qa", "model"],
-  ["form", "model"],
-  ["model", "response"],
-  ["response", "chat"],
 ];
 
 const missionSurfaceDataFixtures: MissionSurfaceFixture[] = [
@@ -635,10 +596,10 @@ const layoutAgentNetwork = (
   const productReleaseNode = contextNodes.find(
     (node) => node.label === "Product Release",
   );
-  const edges: Array<[string, string]> = [
+  const rawEdges: Array<[string, string]> = [
     ...agent.edges,
-    ...questionNodes.map((node) => ["router", node.id] as [string, string]),
-    ...workflowNodes.map((node) => ["router", node.id] as [string, string]),
+    ...allQuestionNodes.map((node) => ["chat", node.id] as [string, string]),
+    ...allWorkflowNodes.map((node) => ["chat", node.id] as [string, string]),
     ...(currentDateNode
       ? allQuestionNodes.map(
           (question) => [currentDateNode.id, question.id] as [string, string],
@@ -666,6 +627,11 @@ const layoutAgentNetwork = (
       (workflow) => [workflow.id, "chat"] as [string, string],
     ),
   ];
+  const edges = [
+    ...new Map(
+      rawEdges.map((edge) => [[...edge].sort().join(":"), edge]),
+    ).values(),
+  ];
   const contextLayoutNodes = nodes.filter((node) =>
     ["Data Object", "Knowledge source", "System Context"].includes(node.type),
   );
@@ -689,12 +655,8 @@ const layoutAgentNetwork = (
       return { ...node, x: 460, y: 48 + index * 54 };
     }
     if (node.id === "chat") return { ...node, x: 40, y: 285 };
-    if (node.id === "router") return { ...node, x: 205, y: 285 };
-    if (node.id === "agent") return { ...node, x: 350, y: 285 };
     if (node.id === "qa") return { ...node, x: 520, y: 215 };
     if (node.id === "form") return { ...node, x: 520, y: 365 };
-    if (node.id === "model") return { ...node, x: 700, y: 505 };
-    if (node.id === "response") return { ...node, x: 880, y: 505 };
     if (node.id === "knowledge") return { ...node, x: 700, y: 440 };
     return node;
   });
@@ -712,7 +674,7 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
     draft: {
       qaDescription:
         "Determine material delivery concerns requiring management attention.",
-      targetModel: "gpt-5",
+      targetModel: "Governed fixture model",
       timeHorizon: "Current reporting period",
       reasoningLevel: "Medium",
       dataObjects: ["mission", "raid"],
@@ -728,27 +690,10 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
       {
         id: "chat",
         type: "Chat",
-        label: "Portfolio Chat",
+        label: "Interactions",
         detail: "Executive conversation",
         x: 90,
         y: 230,
-      },
-      {
-        id: "router",
-        type: "Router",
-        label: "Portfolio Router",
-        detail: "91% confidence",
-        x: 270,
-        y: 230,
-      },
-      {
-        id: "agent",
-        type: "Agent",
-        label: "Portfolio Navigator",
-        detail: "Selected agent",
-        x: 455,
-        y: 230,
-        selected: true,
       },
       {
         id: "qa",
@@ -790,28 +735,12 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
         x: 850,
         y: 305,
       },
-      {
-        id: "model",
-        type: "Model",
-        label: "gpt-5",
-        detail: "Response reasoning",
-        x: 455,
-        y: 430,
-      },
-      {
-        id: "response",
-        type: "Response",
-        label: "Portfolio response",
-        detail: "Chat output",
-        x: 650,
-        y: 470,
-      },
     ],
     edges: networkEdges,
     draft: {
       qaDescription:
         "Explain portfolio health, decision points and strategic dependencies.",
-      targetModel: "gpt-5",
+      targetModel: "Governed fixture model",
       timeHorizon: "Current quarter",
       reasoningLevel: "Medium",
       dataObjects: ["mission", "raid"],
@@ -866,7 +795,7 @@ const fixtureChatResponse = (agent: AgentFixtureNetwork, message: string) => {
 const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
   const question = message.toLowerCase();
   if (question === "can you review it?" || question === "can you review it")
-    return ["chat", "router", "response"];
+    return ["chat"];
   if (
     agent.id === "agent-builder" &&
     (question.includes("next release") ||
@@ -874,29 +803,17 @@ const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
   )
     return [
       "chat",
-      "router",
-      "agent",
       "ms-data-current-date-time",
       "ms-capability-general-governed-data-lookup",
       "ms-data-data-object-catalogue",
       "ms-data-product-release",
-      "model",
-      "response",
     ];
   if (
     agent.id === "agent-builder" &&
     (question.includes("create a mission") ||
       question.includes("help me create"))
   )
-    return [
-      "chat",
-      "router",
-      "agent",
-      "form",
-      "ms-capability-mission-intent-q-a",
-      "model",
-      "response",
-    ];
+    return ["chat", "form", "ms-capability-mission-intent-q-a"];
   const prefersWorkflow = /escalat|decision brief|submit|form|intake/.test(
     question,
   );
@@ -910,8 +827,6 @@ const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
           : null;
   return [
     "chat",
-    "router",
-    "agent",
     ...(agent.id === "agent-builder"
       ? [
           "ms-data-current-date-time",
@@ -921,22 +836,16 @@ const fixtureExecutionPath = (agent: AgentFixtureNetwork, message: string) => {
       : []),
     ...(capability ? [capability] : []),
     ...(capability === "qa" ? agent.draft.dataObjects : []),
-    "model",
-    "response",
   ];
 };
 
 const executionRole = (node: NetworkNode, path: string[]) => {
   if (!path.includes(node.id)) return null;
   if (node.type === "Chat") return "User message received";
-  if (node.type === "Router") return "Intent classified and route selected";
-  if (node.type === "Agent") return "Selected agent coordinated the route";
   if (node.type === "Q&A capability" || node.type === "Form / workflow")
     return "Capability executed";
   if (node.type === "Data Object" || node.type === "Knowledge source")
     return "Fixture context accessed";
-  if (node.type === "Model") return "Response reasoning applied";
-  if (node.type === "Response") return "Fixture response returned to Chat";
   return "Participated in the fixture execution";
 };
 
@@ -1430,7 +1339,7 @@ function AgentNetwork({
   const [activeLayer, setActiveLayer] = useState<NetworkLayer>("All");
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("agent-builder");
-  const [selectedNodeId, setSelectedNodeId] = useState("agent");
+  const [selectedNodeId, setSelectedNodeId] = useState("chat");
   const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const configuredAgent =
     agentNetworks.find((agent) => agent.id === selectedAgentId) ??
@@ -1443,7 +1352,10 @@ function AgentNetwork({
     agent.name.toLowerCase().includes(agentFilter.trim().toLowerCase()),
   );
   const nodeById = new Map(selectedAgent.nodes.map((node) => [node.id, node]));
-  const selectedNode = nodeById.get(selectedNodeId) ?? nodeById.get("agent")!;
+  const selectedNode =
+    nodeById.get(selectedNodeId) ??
+    nodeById.get("chat") ??
+    selectedAgent.nodes[0]!;
   const chatMessages = chatThreads[selectedAgent.id] ?? [];
   const agentFeedback = feedbackRecords.filter(
     (record) => record.agent === selectedAgent.name,
@@ -1490,7 +1402,7 @@ function AgentNetwork({
   const resetView = () => setView({ scale: 1, x: 0, y: 0 });
   const selectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
-    setSelectedNodeId("agent");
+    setSelectedNodeId("chat");
     setSelectedFeedbackId(null);
     setChatInput("");
     setExecutionPath([]);
@@ -1506,15 +1418,7 @@ function AgentNetwork({
         if (agent.id !== selectedAgent.id) return agent;
         const draft = { ...agent.draft, ...changes };
         let nodes = agent.nodes.map((node) =>
-          node.id === "qa"
-            ? { ...node, detail: draft.qaDescription }
-            : node.id === "model"
-              ? {
-                  ...node,
-                  label: draft.targetModel,
-                  detail: `${draft.reasoningLevel} reasoning`,
-                }
-              : node,
+          node.id === "qa" ? { ...node, detail: draft.qaDescription } : node,
         );
         const hasChatHistory = draft.dataObjects.includes("chat-history");
         if (hasChatHistory && !nodes.some((node) => node.id === "chat-history"))
@@ -1536,14 +1440,14 @@ function AgentNetwork({
             !(
               (source === "qa" &&
                 ["mission", "raid", "chat-history"].includes(target)) ||
-              (source === "router" && ["qa", "form"].includes(target))
+              (source === "chat" && ["qa", "form"].includes(target))
             ),
         );
         const dataEdges: Array<[string, string]> = draft.dataObjects.map(
           (dataObject) => ["qa", dataObject],
         );
         const routingEdges: Array<[string, string]> = draft.routingTargets.map(
-          (target) => ["router", target],
+          (target) => ["chat", target],
         );
         return {
           ...agent,
@@ -1581,12 +1485,8 @@ function AgentNetwork({
       const nextStep = currentFormStep + 1;
       path = [
         "chat",
-        "router",
-        "agent",
         "form",
         formQuestions[Math.min(currentFormStep, formQuestions.length - 1)],
-        "model",
-        "response",
       ];
       response =
         nextStep === 2
@@ -2003,11 +1903,11 @@ function AgentNetwork({
             </strong>
           </div>
           <div className="network-controls" aria-label="Network controls">
-            <button onClick={() => changeZoom(0.12)} aria-label="Zoom in">
-              +
-            </button>
             <button onClick={() => changeZoom(-0.12)} aria-label="Zoom out">
               −
+            </button>
+            <button onClick={() => changeZoom(0.12)} aria-label="Zoom in">
+              +
             </button>
             <button onClick={fitNetwork}>Fit to network</button>
             <button onClick={resetView}>Reset view</button>
@@ -2204,12 +2104,6 @@ function MissionControlAgentNetwork({
 }) {
   const [nodes, setNodes] = useState<MissionControlAgentNode[]>([]);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
-  const drag = useRef<{
-    id: string;
-    pointerId: number;
-    x: number;
-    y: number;
-  } | null>(null);
   const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(
     null,
   );
@@ -2310,13 +2204,11 @@ function MissionControlAgentNetwork({
     ...[...laneNodes.values()].map((lane) => lane.length),
   );
   const worldWidth = 1600;
-  const worldHeight = Math.max(760, largestLane * 128 + 140);
+  const worldHeight = Math.max(760, largestLane * 132 + 140);
   const targetYFor = (node: NetworkNode) => {
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
-    return peers.length === 1
-      ? worldHeight / 2
-      : 116 + index * ((worldHeight - 220) / (peers.length - 1));
+    return 120 + index * 132;
   };
 
   useEffect(() => {
@@ -2345,37 +2237,6 @@ function MissionControlAgentNetwork({
         Math.min(2.2, Number((current.zoom + amount).toFixed(2))),
       ),
     }));
-  const startDrag = (event: React.PointerEvent<SVGGElement>, id: string) => {
-    event.stopPropagation();
-    drag.current = {
-      id,
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const moveDrag = (event: React.PointerEvent<SVGGElement>) => {
-    const active = drag.current;
-    if (!active || active.pointerId !== event.pointerId) return;
-    const deltaY = (event.clientY - active.y) / view.zoom;
-    active.x = event.clientX;
-    active.y = event.clientY;
-    setNodes((current) =>
-      current.map((node) =>
-        node.id === active.id
-          ? {
-              ...node,
-              x: columnFor(node),
-              y: Math.max(98, Math.min(worldHeight - 54, node.y + deltaY)),
-            }
-          : node,
-      ),
-    );
-  };
-  const endDrag = () => {
-    drag.current = null;
-  };
   return (
     <section
       className="mission-control-agent-network"
@@ -2387,11 +2248,11 @@ function MissionControlAgentNetwork({
           <strong>{agent.name}</strong>
         </div>
         <div className="mission-control-actions">
-          <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
-            +
-          </button>
           <button onClick={() => setZoom(-0.12)} aria-label="Zoom out">
             −
+          </button>
+          <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
+            +
           </button>
           <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>Fit</button>
           <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>
@@ -2399,13 +2260,7 @@ function MissionControlAgentNetwork({
           </button>
         </div>
       </header>
-      <div
-        className="mission-control-agent-viewport"
-        onWheel={(event) => {
-          event.preventDefault();
-          setZoom(event.deltaY < 0 ? 0.08 : -0.08);
-        }}
-      >
+      <div className="mission-control-agent-viewport">
         <svg
           viewBox={`0 0 ${worldWidth} ${worldHeight}`}
           role="img"
@@ -2463,6 +2318,11 @@ function MissionControlAgentNetwork({
               <rect x="1242" y="10" width="196" height={worldHeight - 20} />
               <rect x="1450" y="10" width="142" height={worldHeight - 20} />
             </g>
+            <g className="mission-control-agent-data-groups" aria-hidden="true">
+              <rect x="174" y="80" width="112" height={worldHeight - 116} />
+              <rect x="304" y="80" width="112" height={worldHeight - 116} />
+              <rect x="430" y="80" width="390" height={worldHeight - 116} />
+            </g>
             <g className="mission-control-agent-layer-labels">
               <text x="82" y="40">
                 Timeliness
@@ -2486,7 +2346,7 @@ function MissionControlAgentNetwork({
                 Agentic Workflow
               </text>
               <text x="1520" y="40">
-                Chat
+                Interactions
               </text>
             </g>
             <g className="mission-control-agent-edges">
@@ -2525,10 +2385,6 @@ function MissionControlAgentNetwork({
                 tabIndex={0}
                 aria-pressed={node.id === selectedNodeId}
                 aria-label={`Inspect ${node.label}`}
-                onPointerDown={(event) => startDrag(event, node.id)}
-                onPointerMove={moveDrag}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
                 onClick={() => onSelect(node.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -2738,8 +2594,8 @@ function NetworkInspectorPanel({
                 updateDraft({ targetModel: event.target.value })
               }
             >
-              <option>gpt-5</option>
-              <option>gpt-4.1</option>
+              <option>Governed fixture model</option>
+              <option>Standard fixture model</option>
             </select>
           </label>
           <label className="network-edit-field">
@@ -2776,7 +2632,7 @@ function NetworkInspectorPanel({
                 checked={draft.routingTargets.includes("qa")}
                 onChange={() => toggleRoute("qa")}
               />{" "}
-              Route from {isPortfolio ? "Portfolio Router" : "Intent Router"}
+              Route from Interactions
             </label>
           </fieldset>
         </>

@@ -114,6 +114,13 @@
 .mission-control-agent-stage-bands rect:nth-child(even) {
   fill: #ffffff03;
 }
+.mission-control-agent-data-groups rect {
+  fill: #0f1b3028;
+  stroke: #8ea7c52b;
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  rx: 7px;
+}
 .mission-control-agent-edges path {
   fill: none;
   stroke: #6db8d8;
@@ -150,7 +157,7 @@
   text-transform: uppercase;
 }
 .mission-control-agent-node {
-  cursor: grab;
+  cursor: pointer;
   opacity: 0;
   animation: mission-control-agent-arrive 680ms cubic-bezier(0.22, 1, 0.36, 1)
     forwards;
