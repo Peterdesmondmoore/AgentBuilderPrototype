@@ -1,14 +1,3 @@
-import {
-  forceCenter,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  forceX,
-  forceY,
-  type Simulation,
-  type SimulationNodeDatum,
-} from "d3";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type Page =
@@ -2200,8 +2189,7 @@ function AgentNetwork({
   );
 }
 
-type MissionControlAgentNode = NetworkNode &
-  SimulationNodeDatum & { radius: number };
+type MissionControlAgentNode = NetworkNode & { width: number; height: number };
 
 function MissionControlAgentNetwork({
   agent,
@@ -2225,10 +2213,6 @@ function MissionControlAgentNetwork({
   const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(
     null,
   );
-  const simulationRef = useRef<Simulation<
-    MissionControlAgentNode,
-    undefined
-  > | null>(null);
   const dataGroupFor = (node: NetworkNode) => {
     const detail = node.detail.toLowerCase();
     if (
@@ -2286,30 +2270,33 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      timeliness: 90,
+      timeliness: 82,
       "data-policies": 230,
-      "data-general": 365,
+      "data-general": 360,
       "data-mission-0": 500,
-      "data-mission-1": 610,
-      "data-mission-2": 720,
-      "question-control": 815,
-      "question-0": 900,
-      "question-1": 985,
-      workflow: 1120,
-      chat: 1310,
-    })[laneFor(node)] ?? 1310;
-  const radiusFor = (node: NetworkNode) => (node.type === "Agent" ? 42 : 34);
+      "data-mission-1": 630,
+      "data-mission-2": 760,
+      "question-control": 900,
+      "question-0": 1040,
+      "question-1": 1180,
+      workflow: 1340,
+      chat: 1520,
+    })[laneFor(node)] ?? 1520;
+  const widthFor = (node: NetworkNode) =>
+    node.type === "Agent" ? 132 : node.type === "Form / workflow" ? 128 : 116;
+  const heightFor = (node: NetworkNode) => (node.type === "Agent" ? 48 : 42);
   const labelsFor = (label: string) => {
     const words = label.split(/\s+/);
-    if (label.length <= 16) return [label];
+    if (label.length <= 18) return [label];
     const lines = [""];
     words.forEach((word) => {
       const last = lines.length - 1;
-      if (`${lines[last]} ${word}`.trim().length <= 16 || lines.length === 3)
+      if (`${lines[last]} ${word}`.trim().length <= 18 || lines.length === 2)
         lines[last] = `${lines[last]} ${word}`.trim();
       else lines.push(word);
     });
-    return lines;
+    if (lines[1]?.length > 20) lines[1] = `${lines[1].slice(0, 19).trim()}…`;
+    return lines.slice(0, 2);
   };
   const laneNodes = new Map<string, NetworkNode[]>();
   agent.nodes.forEach((node) =>
@@ -2322,82 +2309,26 @@ function MissionControlAgentNetwork({
     1,
     ...[...laneNodes.values()].map((lane) => lane.length),
   );
-  const worldHeight = Math.max(785, largestLane * 130 + 155);
+  const worldWidth = 1600;
+  const worldHeight = Math.max(760, largestLane * 128 + 140);
   const targetYFor = (node: NetworkNode) => {
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
     return peers.length === 1
       ? worldHeight / 2
-      : 112 + index * ((worldHeight - 224) / (peers.length - 1));
+      : 116 + index * ((worldHeight - 220) / (peers.length - 1));
   };
 
   useEffect(() => {
-    const byId = new Map(agent.nodes.map((node) => [node.id, node]));
     const graphNodes = agent.nodes.map((node) => ({
       ...node,
-      radius: radiusFor(node),
+      width: widthFor(node),
+      height: heightFor(node),
       x: columnFor(node),
       y: targetYFor(node),
     }));
-    const links = agent.edges
-      .map(([source, target]) => ({ source, target }))
-      .filter(
-        (link) =>
-          byId.has(String(link.source)) && byId.has(String(link.target)),
-      );
-    const simulation = forceSimulation<MissionControlAgentNode>(graphNodes)
-      .force(
-        "link",
-        forceLink<MissionControlAgentNode, { source: string; target: string }>(
-          links,
-        )
-          .id((node) => node.id)
-          .distance(180)
-          .strength(0.1),
-      )
-      .force(
-        "charge",
-        forceManyBody<MissionControlAgentNode>()
-          .strength(-160)
-          .distanceMax(250),
-      )
-      .force("center", forceCenter(700, worldHeight / 2).strength(0.02))
-      .force(
-        "columns",
-        forceX((node: MissionControlAgentNode) => columnFor(node)).strength(
-          0.96,
-        ),
-      )
-      .force(
-        "vertical",
-        forceY((node: MissionControlAgentNode) => targetYFor(node)).strength(
-          0.9,
-        ),
-      )
-      .force(
-        "collision",
-        forceCollide((node: MissionControlAgentNode) => node.radius + 11)
-          .strength(0.98)
-          .iterations(4),
-      )
-      .alphaDecay(0.11)
-      .velocityDecay(0.5);
-    simulation.stop();
-    for (let tick = 0; tick < 140; tick += 1) simulation.tick();
-    setNodes(graphNodes.map((node) => ({ ...node, x: columnFor(node) })));
-    simulation.on("tick", () =>
-      setNodes(
-        graphNodes.map((node) => ({
-          ...node,
-          x: drag.current?.id === node.id ? node.x : columnFor(node),
-        })),
-      ),
-    );
-    simulationRef.current = simulation;
-    return () => {
-      simulation.stop();
-      if (simulationRef.current === simulation) simulationRef.current = null;
-    };
+    setNodes(graphNodes);
+    setView({ x: 0, y: 0, zoom: 1 });
   }, [agent, worldHeight]);
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
@@ -2416,12 +2347,6 @@ function MissionControlAgentNetwork({
     }));
   const startDrag = (event: React.PointerEvent<SVGGElement>, id: string) => {
     event.stopPropagation();
-    const node = simulationRef.current?.nodes().find((item) => item.id === id);
-    if (node) {
-      node.x = columnFor(node);
-      node.fx = node.x;
-      node.fy = node.y;
-    }
     drag.current = {
       id,
       pointerId: event.pointerId,
@@ -2433,29 +2358,22 @@ function MissionControlAgentNetwork({
   const moveDrag = (event: React.PointerEvent<SVGGElement>) => {
     const active = drag.current;
     if (!active || active.pointerId !== event.pointerId) return;
-    const deltaX = (event.clientX - active.x) / view.zoom;
     const deltaY = (event.clientY - active.y) / view.zoom;
     active.x = event.clientX;
     active.y = event.clientY;
-    const node = simulationRef.current
-      ?.nodes()
-      .find((item) => item.id === active.id);
-    if (node) {
-      node.fx = (node.fx ?? node.x ?? 0) + deltaX;
-      node.fy = (node.fy ?? node.y ?? 0) + deltaY;
-      simulationRef.current?.alpha(0.2).restart();
-    }
+    setNodes((current) =>
+      current.map((node) =>
+        node.id === active.id
+          ? {
+              ...node,
+              x: columnFor(node),
+              y: Math.max(98, Math.min(worldHeight - 54, node.y + deltaY)),
+            }
+          : node,
+      ),
+    );
   };
   const endDrag = () => {
-    const active = drag.current;
-    const node = active
-      ? simulationRef.current?.nodes().find((item) => item.id === active.id)
-      : null;
-    if (node) {
-      node.fx = null;
-      node.fy = null;
-      simulationRef.current?.alpha(0.3).restart();
-    }
     drag.current = null;
   };
   return (
@@ -2467,10 +2385,6 @@ function MissionControlAgentNetwork({
         <div>
           <span className="ab-kicker">AGENT NETWORK</span>
           <strong>{agent.name}</strong>
-          <small>
-            Timeliness → Data Objects → Agentic Q&amp;A → Agentic Workflow →
-            Chat
-          </small>
         </div>
         <div className="mission-control-actions">
           <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
@@ -2493,7 +2407,7 @@ function MissionControlAgentNetwork({
         }}
       >
         <svg
-          viewBox={`0 0 1400 ${worldHeight}`}
+          viewBox={`0 0 ${worldWidth} ${worldHeight}`}
           role="img"
           aria-label={`${agent.name} connected components`}
           onPointerDown={(event) => {
@@ -2529,32 +2443,49 @@ function MissionControlAgentNetwork({
           }}
         >
           <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
+            <defs>
+              <marker
+                id="agent-network-arrow"
+                markerWidth="7"
+                markerHeight="7"
+                refX="6"
+                refY="3.5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M0,0 L7,3.5 L0,7 Z" />
+              </marker>
+            </defs>
+            <g className="mission-control-agent-stage-bands" aria-hidden="true">
+              <rect x="8" y="10" width="148" height={worldHeight - 20} />
+              <rect x="168" y="10" width="672" height={worldHeight - 20} />
+              <rect x="852" y="10" width="378" height={worldHeight - 20} />
+              <rect x="1242" y="10" width="196" height={worldHeight - 20} />
+              <rect x="1450" y="10" width="142" height={worldHeight - 20} />
+            </g>
             <g className="mission-control-agent-layer-labels">
-              <text x="90" y="42">
+              <text x="82" y="40">
                 Timeliness
               </text>
-              <text className="data-group" x="90" y="64">
-                General · Date &amp; Time
-              </text>
-              <text x="475" y="42">
+              <text x="504" y="40">
                 Data Objects
               </text>
-              <text className="data-group" x="230" y="67">
+              <text className="data-group" x="230" y="66">
                 Policies
               </text>
-              <text className="data-group" x="365" y="67">
+              <text className="data-group" x="360" y="66">
                 General
               </text>
-              <text className="data-group" x="610" y="67">
+              <text className="data-group" x="630" y="66">
                 Mission Surface
               </text>
-              <text x="900" y="42">
+              <text x="1040" y="40">
                 Agentic Q&amp;A
               </text>
-              <text x="1120" y="42">
+              <text x="1340" y="40">
                 Agentic Workflow
               </text>
-              <text x="1310" y="42">
+              <text x="1520" y="40">
                 Chat
               </text>
             </g>
@@ -2566,14 +2497,21 @@ function MissionControlAgentNetwork({
                 const sourceStep = executionPath.indexOf(sourceId);
                 const targetStep = executionPath.indexOf(targetId);
                 const executed = sourceStep >= 0 && targetStep >= 0;
+                const left = source.x <= target.x ? source : target;
+                const right = source.x <= target.x ? target : source;
+                const sameLane = Math.abs(left.x - right.x) < 4;
+                const startX = left.x + left.width / 2;
+                const endX = right.x - right.width / 2;
+                const middleX = (startX + endX) / 2;
+                const path = sameLane
+                  ? `M ${left.x + left.width / 2} ${left.y} C ${left.x + left.width / 2 + 58} ${left.y}, ${right.x + right.width / 2 + 58} ${right.y}, ${right.x + right.width / 2} ${right.y}`
+                  : `M ${startX} ${left.y} C ${middleX} ${left.y}, ${middleX} ${right.y}, ${endX} ${right.y}`;
                 return (
-                  <line
+                  <path
                     key={`${sourceId}-${targetId}`}
                     className={`${sourceId === selectedNodeId || targetId === selectedNodeId ? "is-related" : ""} ${executed ? "is-executed" : ""}`}
-                    x1={source.x}
-                    y1={source.y}
-                    x2={target.x}
-                    y2={target.y}
+                    d={path}
+                    markerEnd="url(#agent-network-arrow)"
                   />
                 );
               })}
@@ -2599,50 +2537,58 @@ function MissionControlAgentNetwork({
                   }
                 }}
               >
-                <circle
+                <rect
                   className="mission-control-agent-hit"
-                  r={node.radius + 13}
+                  x={-node.width / 2 - 7}
+                  y={-node.height / 2 - 7}
+                  width={node.width + 14}
+                  height={node.height + 14}
+                  rx="9"
                 />
-                <circle
-                  className="mission-control-agent-halo"
-                  r={node.radius + 7}
-                />
-                <circle
-                  className="mission-control-agent-ring"
-                  r={node.radius}
-                />
-                <circle
+                <rect
                   className="mission-control-agent-core"
-                  r={node.radius - 5}
+                  x={-node.width / 2}
+                  y={-node.height / 2}
+                  width={node.width}
+                  height={node.height}
+                  rx="6"
                 />
                 <text
+                  className="mission-control-agent-glyph"
+                  x={-node.width / 2 + 14}
+                  y="4"
+                >
+                  {node.type === "Chat"
+                    ? "···"
+                    : node.type === "Form / workflow"
+                      ? "W"
+                      : node.type === "Q&A capability" ||
+                          node.type === "Capability"
+                        ? "?"
+                        : node.type === "Data Object" ||
+                            node.type === "Knowledge source"
+                          ? "D"
+                          : node.type.charAt(0)}
+                </text>
+                <text
                   className="mission-control-agent-label"
-                  y={node.radius + 18}
+                  x={-node.width / 2 + 28}
+                  y={labelsFor(node.label).length === 1 ? 4 : -4}
                 >
                   {labelsFor(node.label).map((line, lineIndex) => (
-                    <tspan key={line} x="0" dy={lineIndex === 0 ? 0 : 13}>
+                    <tspan
+                      key={line}
+                      x={-node.width / 2 + 28}
+                      dy={lineIndex === 0 ? 0 : 13}
+                    >
                       {line}
                     </tspan>
                   ))}
-                </text>
-                <text
-                  className="mission-control-agent-type"
-                  y={node.radius + 18 + labelsFor(node.label).length * 13}
-                >
-                  {node.type
-                    .replace(" capability", "")
-                    .replace(" / workflow", "")}
                 </text>
               </g>
             ))}
           </g>
         </svg>
-        <div className="mission-control-agent-legend">
-          <span>Experience</span>
-          <span>Capabilities</span>
-          <span>Context & models</span>
-          <span>Selected relationships</span>
-        </div>
       </div>
     </section>
   );
