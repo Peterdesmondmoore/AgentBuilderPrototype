@@ -5,6 +5,13 @@ import AgentBuilder from './AgentBuilder'
 import './styles.css'
 import './explainer.css'
 import './agent-builder.css'
+import './agent-network.css'
+import './agent-network-visual.css'
+import './agent-network-selection.css'
+import './agent-network-inspector.css'
+import './agent-network-editing.css'
+import './agent-network-chat.css'
+import './agent-network-execution.css'
 
 const isAgentBuilder = window.location.hash.startsWith('#/prototypes/agent-builder-self-improvement')
 

@@ -18,10 +18,9 @@
   "demoPath": "/demo",
   "entryRoute": "/#/prototypes/agent-builder-self-improvement",
   "pages": [
-    "Overview",
-    "Builder",
-    "Agent Testers",
-    "Feedback"
+    "Home",
+    "Login",
+    "Agent Network"
   ],
   "integration": {
     "protocol": "mission-surface-prototype",
