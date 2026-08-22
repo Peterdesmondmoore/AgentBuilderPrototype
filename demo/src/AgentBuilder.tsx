@@ -2289,14 +2289,20 @@ function MissionControlAgentNetwork({
         ...traceLineage(selectedNodeId, "downstream"),
       ])
     : new Set<string>();
+  const filteredLineage =
+    activeArea === "All"
+      ? null
+      : new Set(
+          nodes
+            .filter((node) => laneFor(node) === activeArea)
+            .flatMap((node) => [
+              ...traceLineage(node.id, "upstream"),
+              ...traceLineage(node.id, "downstream"),
+            ]),
+        );
   const visibleNodeIds = new Set(
     nodes
-      .filter(
-        (node) =>
-          activeArea === "All" ||
-          laneFor(node) === activeArea ||
-          (hasSelection && lineage.has(node.id)),
-      )
+      .filter((node) => !filteredLineage || filteredLineage.has(node.id))
       .map((node) => node.id),
   );
   const chooseArea = (area: AgentNetworkArea) => {

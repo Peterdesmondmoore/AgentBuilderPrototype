@@ -40,10 +40,10 @@
   overflow: hidden;
   border: 1px solid #c7d1df;
   border-radius: 18px;
-  background: #17233a;
+  background: #fff;
   box-shadow:
-    0 24px 64px #17223a24,
-    inset 0 1px 0 #ffffff0c;
+    0 24px 64px #17223a12,
+    inset 0 1px 0 #fff;
 }
 
 .mission-control-agent-network > header {
@@ -53,23 +53,23 @@
   gap: 18px;
   min-height: 66px;
   padding: 11px 18px;
-  border-bottom: 1px solid #ffffff18;
-  background: #1b2943;
+  border-bottom: 1px solid #dfe6ef;
+  background: #fff;
 }
 .mission-control-agent-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
   padding: 10px 18px;
-  border-bottom: 1px solid #ffffff14;
-  background: #192741;
+  border-bottom: 1px solid #dfe6ef;
+  background: #f8fafc;
 }
 .mission-control-agent-filters button {
-  border: 1px solid #a9bad43d;
+  border: 1px solid #c9d4e3;
   border-radius: 999px;
-  background: #ffffff08;
+  background: #fff;
   padding: 6px 9px;
-  color: #c7d3e8;
+  color: #4b5b73;
   font-size: 10px;
   font-weight: 650;
   cursor: pointer;
@@ -77,39 +77,45 @@
 .mission-control-agent-filters button:hover,
 .mission-control-agent-filters button:focus-visible,
 .mission-control-agent-filters button.is-active {
-  color: #f5f8fe;
+  color: #17223a;
   outline: none;
 }
 .mission-control-agent-filters .area-all.is-active {
   border-color: #c3d0e2;
   background: #52647d;
+  color: #fff;
 }
 .mission-control-agent-filters .area-timeliness.is-active {
   border-color: #e6b670;
   background: #9b642f;
+  color: #fff;
 }
 .mission-control-agent-filters .area-data.is-active {
   border-color: #cf9ee5;
   background: #745188;
+  color: #fff;
 }
 .mission-control-agent-filters .area-question.is-active {
   border-color: #7ed5e3;
   background: #276d82;
+  color: #fff;
 }
 .mission-control-agent-filters .area-workflow.is-active {
   border-color: #98d7af;
   background: #347258;
+  color: #fff;
 }
 .mission-control-agent-filters .area-interactions.is-active {
   border-color: #9ebfee;
   background: #3f5f98;
+  color: #fff;
 }
 .mission-control-agent-network header > div:first-child {
   display: grid;
   gap: 3px;
 }
 .mission-control-agent-network header strong {
-  color: #eef4ff;
+  color: #17223a;
   font-size: 15px;
 }
 .mission-control-agent-network header small {
@@ -126,18 +132,18 @@
 .mission-control-actions button {
   min-width: 36px;
   min-height: 34px;
-  border: 1px solid #9db0ca55;
+  border: 1px solid #c5d0df;
   border-radius: 8px;
-  background: #263752;
-  color: #e8f1ff;
+  background: #fff;
+  color: #263752;
   font-size: 11px;
   font-weight: 750;
   cursor: pointer;
 }
 .mission-control-actions button:hover,
 .mission-control-actions button:focus-visible {
-  border-color: #75d8d0;
-  background: #304563;
+  border-color: #4d9e99;
+  background: #effbf9;
   outline: none;
 }
 .mission-control-agent-viewport {
@@ -145,7 +151,7 @@
   min-height: 640px;
   overflow: hidden;
   isolation: isolate;
-  background: #17233a;
+  background: #fff;
 }
 .mission-control-agent-viewport svg {
   display: block;
@@ -188,7 +194,7 @@
   rx: 7px;
 }
 .mission-control-agent-data-groups text {
-  fill: #c1d0e5;
+  fill: #694779;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -199,7 +205,7 @@
   fill: none;
   stroke: #9fb2cc;
   stroke-width: 1.7;
-  opacity: 0.25;
+  opacity: 0.45;
   vector-effect: non-scaling-stroke;
 }
 .mission-control-agent-edges path.area-timeliness {
@@ -235,7 +241,7 @@
   opacity: 1;
 }
 .mission-control-agent-layer-labels text {
-  fill: #e7effd;
+  fill: #24334d;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -280,52 +286,52 @@
   fill: transparent;
 }
 .mission-control-agent-core {
-  fill: #203553;
+  fill: #fff;
   stroke: #aabbd2;
   stroke-width: 1.4;
-  filter: drop-shadow(0 5px 10px #07112175);
+  filter: drop-shadow(0 4px 8px #17223a18);
   vector-effect: non-scaling-stroke;
   transition:
     fill 0.18s ease,
     stroke-width 0.18s ease;
 }
 .mission-control-agent-node.area-timeliness .mission-control-agent-core {
-  fill: #4b3520;
+  fill: #fff5e6;
   stroke: #dfa34e;
 }
 .mission-control-agent-node.area-data .mission-control-agent-core {
-  fill: #3e2b4a;
+  fill: #fbf0ff;
   stroke: #c08ad7;
 }
 .mission-control-agent-node.area-question .mission-control-agent-core {
-  fill: #1f4653;
+  fill: #eafaff;
   stroke: #65c8db;
 }
 .mission-control-agent-node.area-workflow .mission-control-agent-core {
-  fill: #294538;
+  fill: #eefbf2;
   stroke: #79ca97;
 }
 .mission-control-agent-node.area-interactions .mission-control-agent-core {
-  fill: #283e68;
+  fill: #eef4ff;
   stroke: #84ace9;
 }
 .mission-control-agent-node:hover .mission-control-agent-core,
 .mission-control-agent-node:focus .mission-control-agent-core {
-  fill: #294462;
+  fill: #fff;
   stroke-width: 2;
 }
 .mission-control-agent-node.is-selected .mission-control-agent-core {
-  stroke: #f4f8ff;
+  stroke: #17223a;
   stroke-width: 3;
   filter: drop-shadow(0 0 9px #7ccfc88c);
 }
 .mission-control-agent-node.is-lineage .mission-control-agent-core {
   stroke-width: 2.3;
-  filter: drop-shadow(0 0 7px #d8e7fa73);
+  filter: drop-shadow(0 0 7px #507fbe45);
 }
 .mission-control-agent-node.is-selected.is-lineage .mission-control-agent-core {
   stroke-width: 3;
-  filter: drop-shadow(0 0 10px #f4f8ff99);
+  filter: drop-shadow(0 0 10px #507fbe66);
 }
 .mission-control-agent-node.is-executed .mission-control-agent-core {
   stroke-width: 2.8;
@@ -354,7 +360,7 @@
   fill: #9ebfee;
 }
 .mission-control-agent-label {
-  fill: #f2f6fd;
+  fill: #1e2b40;
   font-size: 11px;
   font-weight: 400;
   text-anchor: start;
