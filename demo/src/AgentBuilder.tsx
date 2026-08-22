@@ -2132,90 +2132,100 @@ function MissionControlAgentNetwork({
       return "general";
     return "mission-surface";
   };
-  const sideWithin = (
-    node: NetworkNode,
-    predicate: (candidate: NetworkNode) => boolean,
-    columns = 2,
-  ) =>
-    Math.max(
-      0,
-      agent.nodes.filter(predicate).findIndex((item) => item.id === node.id),
-    ) % columns;
+  const isDataNode = (node: NetworkNode) =>
+    ["Data Object", "Knowledge source", "System Context"].includes(node.type);
+  const dataGroups = ["policies", "general", "mission-surface"] as const;
   const laneFor = (node: NetworkNode) => {
     if (
       node.label === "Current Date and Time" ||
       node.label === "Current Date & Time"
     )
       return "timeliness";
-    if (
-      ["Data Object", "Knowledge source", "System Context"].includes(node.type)
-    ) {
-      const group = dataGroupFor(node);
-      if (group === "mission-surface")
-        return `data-mission-${sideWithin(node, (candidate) => ["Data Object", "Knowledge source", "System Context"].includes(candidate.type) && dataGroupFor(candidate) === "mission-surface", 3)}`;
-      return `data-${group}`;
-    }
+    if (isDataNode(node)) return "data";
     if (node.type === "Q&A capability" || node.type === "Capability")
-      return `question-${sideWithin(node, (candidate) => candidate.type === "Q&A capability" || candidate.type === "Capability")}`;
-    if (["Router", "Agent", "Model"].includes(node.type))
-      return "question-control";
+      return "question";
     if (node.type === "Form / workflow") return "workflow";
-    return "chat";
+    return "interactions";
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      timeliness: 82,
-      "data-policies": 230,
-      "data-general": 360,
-      "data-mission-0": 500,
-      "data-mission-1": 630,
-      "data-mission-2": 760,
-      "question-control": 900,
-      "question-0": 1040,
-      "question-1": 1180,
-      workflow: 1340,
-      chat: 1520,
-    })[laneFor(node)] ?? 1520;
+      timeliness: 100,
+      data: 400,
+      question: 825,
+      workflow: 1115,
+      interactions: 1375,
+    })[laneFor(node)] ?? 1375;
   const widthFor = (node: NetworkNode) =>
-    node.type === "Agent" ? 132 : node.type === "Form / workflow" ? 128 : 116;
-  const heightFor = (node: NetworkNode) => (node.type === "Agent" ? 48 : 42);
+    node.type === "Form / workflow" ? 180 : 172;
+  const heightFor = () => 44;
   const labelsFor = (label: string) => {
     const words = label.split(/\s+/);
-    if (label.length <= 18) return [label];
+    if (label.length <= 22) return [label];
     const lines = [""];
     words.forEach((word) => {
       const last = lines.length - 1;
-      if (`${lines[last]} ${word}`.trim().length <= 18 || lines.length === 2)
+      if (`${lines[last]} ${word}`.trim().length <= 22 || lines.length === 2)
         lines[last] = `${lines[last]} ${word}`.trim();
       else lines.push(word);
     });
-    if (lines[1]?.length > 20) lines[1] = `${lines[1].slice(0, 19).trim()}…`;
+    if (lines[1]?.length > 24) lines[1] = `${lines[1].slice(0, 23).trim()}…`;
     return lines.slice(0, 2);
   };
-  const laneNodes = new Map<string, NetworkNode[]>();
-  agent.nodes.forEach((node) =>
-    laneNodes.set(laneFor(node), [
-      ...(laneNodes.get(laneFor(node)) ?? []),
-      node,
+  const groupedDataNodes = new Map(
+    dataGroups.map((group) => [
+      group,
+      agent.nodes.filter(
+        (node) => laneFor(node) === "data" && dataGroupFor(node) === group,
+      ),
     ]),
   );
-  const largestLane = Math.max(
-    1,
-    ...[...laneNodes.values()].map((lane) => lane.length),
-  );
-  const worldWidth = 1600;
-  const worldHeight = Math.max(760, largestLane * 132 + 140);
+  const dataPositions = new Map<string, number>();
+  const dataGroupBounds = new Map<
+    (typeof dataGroups)[number],
+    { top: number; height: number; label: string }
+  >();
+  let dataCursor = 128;
+  dataGroups.forEach((group) => {
+    const members = groupedDataNodes.get(group) ?? [];
+    const top = dataCursor - 54;
+    members.forEach((node, index) =>
+      dataPositions.set(node.id, dataCursor + index * 76),
+    );
+    const height = Math.max(78, members.length * 76 + 10);
+    dataGroupBounds.set(group, {
+      top,
+      height,
+      label:
+        group === "mission-surface"
+          ? "Mission Surface"
+          : `${group.charAt(0).toUpperCase()}${group.slice(1)}`,
+    });
+    dataCursor += members.length * 76 + 42;
+  });
+  const laneNodes = new Map<string, NetworkNode[]>();
+  agent.nodes
+    .filter((node) => laneFor(node) !== "data")
+    .forEach((node) =>
+      laneNodes.set(laneFor(node), [
+        ...(laneNodes.get(laneFor(node)) ?? []),
+        node,
+      ]),
+    );
+  const worldWidth = 1500;
+  const worldHeight = Math.max(860, dataCursor + 70);
+  const canvasHeight = worldHeight;
   const targetYFor = (node: NetworkNode) => {
+    if (laneFor(node) === "data") return dataPositions.get(node.id) ?? 128;
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
-    return 120 + index * 132;
+    return 128 + index * 82;
   };
 
   useEffect(() => {
     const graphNodes = agent.nodes.map((node) => ({
       ...node,
       width: widthFor(node),
-      height: heightFor(node),
+      height: heightFor(),
       x: columnFor(node),
       y: targetYFor(node),
     }));
@@ -2237,6 +2247,7 @@ function MissionControlAgentNetwork({
         Math.min(2.2, Number((current.zoom + amount).toFixed(2))),
       ),
     }));
+  const fitWidth = () => setView({ x: 0, y: 0, zoom: 1 });
   return (
     <section
       className="mission-control-agent-network"
@@ -2254,7 +2265,7 @@ function MissionControlAgentNetwork({
           <button onClick={() => setZoom(0.12)} aria-label="Zoom in">
             +
           </button>
-          <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>Fit</button>
+          <button onClick={fitWidth}>Fit width</button>
           <button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>
             Reset
           </button>
@@ -2263,6 +2274,8 @@ function MissionControlAgentNetwork({
       <div className="mission-control-agent-viewport">
         <svg
           viewBox={`0 0 ${worldWidth} ${worldHeight}`}
+          style={{ height: `${canvasHeight}px` }}
+          preserveAspectRatio="xMidYMin meet"
           role="img"
           aria-label={`${agent.name} connected components`}
           onPointerDown={(event) => {
@@ -2312,40 +2325,45 @@ function MissionControlAgentNetwork({
               </marker>
             </defs>
             <g className="mission-control-agent-stage-bands" aria-hidden="true">
-              <rect x="8" y="10" width="148" height={worldHeight - 20} />
-              <rect x="168" y="10" width="672" height={worldHeight - 20} />
-              <rect x="852" y="10" width="378" height={worldHeight - 20} />
-              <rect x="1242" y="10" width="196" height={worldHeight - 20} />
-              <rect x="1450" y="10" width="142" height={worldHeight - 20} />
+              <rect x="8" y="10" width="184" height={worldHeight - 20} />
+              <rect x="206" y="10" width="388" height={worldHeight - 20} />
+              <rect x="608" y="10" width="434" height={worldHeight - 20} />
+              <rect x="1056" y="10" width="194" height={worldHeight - 20} />
+              <rect x="1264" y="10" width="228" height={worldHeight - 20} />
             </g>
             <g className="mission-control-agent-data-groups" aria-hidden="true">
-              <rect x="174" y="80" width="112" height={worldHeight - 116} />
-              <rect x="304" y="80" width="112" height={worldHeight - 116} />
-              <rect x="430" y="80" width="390" height={worldHeight - 116} />
+              {dataGroups.map((group) => {
+                const bounds = dataGroupBounds.get(group);
+                if (!bounds) return null;
+                return (
+                  <g key={group}>
+                    <rect
+                      x="286"
+                      y={bounds.top}
+                      width="228"
+                      height={bounds.height}
+                    />
+                    <text x="298" y={bounds.top + 20}>
+                      {bounds.label}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
             <g className="mission-control-agent-layer-labels">
-              <text x="82" y="40">
+              <text x="100" y="40">
                 Timeliness
               </text>
-              <text x="504" y="40">
+              <text x="400" y="40">
                 Data Objects
               </text>
-              <text className="data-group" x="230" y="66">
-                Policies
-              </text>
-              <text className="data-group" x="360" y="66">
-                General
-              </text>
-              <text className="data-group" x="630" y="66">
-                Mission Surface
-              </text>
-              <text x="1040" y="40">
+              <text x="825" y="40">
                 Agentic Q&amp;A
               </text>
-              <text x="1340" y="40">
+              <text x="1115" y="40">
                 Agentic Workflow
               </text>
-              <text x="1520" y="40">
+              <text x="1375" y="40">
                 Interactions
               </text>
             </g>

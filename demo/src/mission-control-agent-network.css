@@ -115,11 +115,18 @@
   fill: #ffffff03;
 }
 .mission-control-agent-data-groups rect {
-  fill: #0f1b3028;
-  stroke: #8ea7c52b;
-  stroke-width: 1;
-  stroke-dasharray: 3 5;
+  fill: #0f1b304c;
+  stroke: #a8bfdc8c;
+  stroke-width: 1.6;
   rx: 7px;
+}
+.mission-control-agent-data-groups text {
+  fill: #c1d0e5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-anchor: start;
+  text-transform: uppercase;
 }
 .mission-control-agent-edges path {
   fill: none;
