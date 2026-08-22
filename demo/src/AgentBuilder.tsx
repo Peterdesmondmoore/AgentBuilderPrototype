@@ -19,12 +19,18 @@ type NetworkNode = {
   selected?: boolean;
 };
 type AgentDraft = {
+  qaName: string;
+  qaRoutingSummary: string;
+  qaExampleRequests: string;
   qaDescription: string;
+  qaProvider: string;
   targetModel: string;
   timeHorizon: string;
   reasoningLevel: string;
   dataObjects: string[];
   routingTargets: string[];
+  qaState: "Active" | "Inactive";
+  qaVersion: string;
 };
 type AgentFixtureNetwork = {
   id: string;
@@ -672,13 +678,21 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
     nodes: networkNodes,
     edges: networkEdges,
     draft: {
+      qaName: "RAID Analysis",
+      qaRoutingSummary:
+        "Choose when Chat receives a delivery risk, issue, dependency or escalation question.",
+      qaExampleRequests:
+        "Is there anything I need to be worried about on the Digital Investment Platform Mission?\nWhich dependency threatens delivery?\nWhat requires management attention this week?",
       qaDescription:
-        "Determine material delivery concerns requiring management attention.",
-      targetModel: "Governed fixture model",
+        "Use governed Mission and RAID evidence, distinguish facts from suggestions, and identify the clearest escalation action.",
+      qaProvider: "openai",
+      targetModel: "mini",
       timeHorizon: "Current reporting period",
-      reasoningLevel: "Medium",
+      reasoningLevel: "High",
       dataObjects: ["mission", "raid"],
       routingTargets: ["qa", "form"],
+      qaState: "Active",
+      qaVersion: "Draft v0.4",
     },
   },
   {
@@ -738,13 +752,21 @@ const fixtureAgentNetworks: AgentFixtureNetwork[] = [
     ],
     edges: networkEdges,
     draft: {
+      qaName: "Portfolio Health",
+      qaRoutingSummary:
+        "Choose when Chat receives a portfolio health, dependency or executive decision question.",
+      qaExampleRequests:
+        "Which outcomes need executive attention?\nWhat is the most material portfolio dependency?\nWhere is delivery confidence declining?",
       qaDescription:
-        "Explain portfolio health, decision points and strategic dependencies.",
-      targetModel: "Governed fixture model",
+        "Use the governed portfolio context to explain health, material dependencies and the next accountable action.",
+      qaProvider: "openai",
+      targetModel: "mini",
       timeHorizon: "Current quarter",
-      reasoningLevel: "Medium",
+      reasoningLevel: "High",
       dataObjects: ["mission", "raid"],
       routingTargets: ["qa", "form"],
+      qaState: "Active",
+      qaVersion: "Draft v0.2",
     },
   },
 ];
@@ -1418,7 +1440,9 @@ function AgentNetwork({
         if (agent.id !== selectedAgent.id) return agent;
         const draft = { ...agent.draft, ...changes };
         let nodes = agent.nodes.map((node) =>
-          node.id === "qa" ? { ...node, detail: draft.qaDescription } : node,
+          node.id === "qa"
+            ? { ...node, label: draft.qaName, detail: draft.qaDescription }
+            : node,
         );
         const hasChatHistory = draft.dataObjects.includes("chat-history");
         if (hasChatHistory && !nodes.some((node) => node.id === "chat-history"))
@@ -2116,6 +2140,9 @@ function MissionControlAgentNetwork({
   const [nodes, setNodes] = useState<MissionControlAgentNode[]>([]);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const [activeArea, setActiveArea] = useState<AgentNetworkArea>("All");
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+  const [wireframeFeedback, setWireframeFeedback] = useState("");
+  const [feedbackLogged, setFeedbackLogged] = useState(false);
   const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(
     null,
   );
@@ -2305,6 +2332,18 @@ function MissionControlAgentNetwork({
       .filter((node) => !filteredLineage || filteredLineage.has(node.id))
       .map((node) => node.id),
   );
+  const expandedNode = expandedNodeId
+    ? (byId.get(expandedNodeId) ?? null)
+    : null;
+  const expandedRelationships = expandedNode
+    ? agent.edges
+        .filter(
+          ([from, to]) => from === expandedNode.id || to === expandedNode.id,
+        )
+        .map(([from, to]) => byId.get(from === expandedNode.id ? to : from))
+        .filter((node): node is MissionControlAgentNode => Boolean(node))
+        .map((node) => node.label)
+    : [];
   const chooseArea = (area: AgentNetworkArea) => {
     setActiveArea(area);
     onSelect("");
@@ -2586,11 +2625,600 @@ function MissionControlAgentNetwork({
                       </tspan>
                     ))}
                   </text>
+                  {node.id === selectedNodeId && (
+                    <g
+                      className="mission-control-agent-expand"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Expand ${node.label}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setExpandedNodeId(node.id);
+                        setWireframeFeedback("");
+                        setFeedbackLogged(false);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setExpandedNodeId(node.id);
+                          setWireframeFeedback("");
+                          setFeedbackLogged(false);
+                        }
+                      }}
+                    >
+                      <rect
+                        x={node.width / 2 - 25}
+                        y={-node.height / 2 + 5}
+                        width="20"
+                        height="20"
+                        rx="4"
+                      />
+                      <text x={node.width / 2 - 15} y={-node.height / 2 + 20}>
+                        +
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
           </g>
         </svg>
+      </div>
+      {expandedNode && (
+        <NetworkNodeDrawer
+          node={expandedNode}
+          draft={agent.draft}
+          relationships={expandedRelationships}
+          feedback={wireframeFeedback}
+          feedbackLogged={feedbackLogged}
+          setFeedback={setWireframeFeedback}
+          onLogFeedback={() => setFeedbackLogged(true)}
+          onClose={() => setExpandedNodeId(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+function NetworkNodeDrawer({
+  node,
+  draft,
+  relationships,
+  feedback,
+  feedbackLogged,
+  setFeedback,
+  onLogFeedback,
+  onClose,
+}: {
+  node: NetworkNode;
+  draft: AgentDraft;
+  relationships: string[];
+  feedback: string;
+  feedbackLogged: boolean;
+  setFeedback: (value: string) => void;
+  onLogFeedback: () => void;
+  onClose: () => void;
+}) {
+  const isInteractions = node.type === "Chat";
+  const workflowConfiguration =
+    node.type === "Form / workflow" ? workflowConfigurationFor(node) : null;
+  const qaConfiguration =
+    node.type === "Q&A capability" ? qaConfigurationFor(node, draft) : null;
+  return (
+    <aside
+      className="mission-control-node-drawer"
+      aria-label={`${node.label} expanded detail`}
+    >
+      <header>
+        <div>
+          <span className="ab-kicker">
+            {isInteractions ? "INTERACTIONS" : "EXPANDED NODE"}
+          </span>
+          <h2>{node.label}</h2>
+          <p>
+            {isInteractions ? "Fixture conversation wireframe" : node.detail}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close expanded node"
+        >
+          ×
+        </button>
+      </header>
+      {isInteractions ? (
+        <>
+          <section
+            className="expanded-chat-wireframe"
+            aria-label="Fixture chat history"
+          >
+            <div className="expanded-chat-history">
+              <article className="assistant">
+                <b>Assistant</b>
+                <p>How can I help with delivery health or Mission progress?</p>
+              </article>
+              <article>
+                <b>User</b>
+                <p>
+                  Is there anything I need to be worried about on the Digital
+                  Investment Platform Mission?
+                </p>
+              </article>
+              <article className="assistant">
+                <b>Assistant</b>
+                <p>
+                  There is one material release dependency that requires an
+                  accountable decision owner this week.
+                </p>
+              </article>
+            </div>
+            <div className="expanded-chat-composer">
+              <input
+                aria-label="Fixture chat message"
+                placeholder="Ask the agent a question…"
+              />
+              <button type="button">Send</button>
+            </div>
+          </section>
+          <section
+            className="expanded-feedback"
+            aria-label="Log interaction feedback"
+          >
+            <label htmlFor="network-wireframe-feedback">Log feedback</label>
+            <textarea
+              id="network-wireframe-feedback"
+              value={feedback}
+              onChange={(event) => {
+                setFeedback(event.target.value);
+                if (feedbackLogged) onLogFeedback();
+              }}
+              placeholder="What worked well or could be improved?"
+            />
+            <button
+              type="button"
+              disabled={!feedback.trim()}
+              onClick={onLogFeedback}
+            >
+              {feedbackLogged ? "Feedback logged" : "Log feedback"}
+            </button>
+          </section>
+        </>
+      ) : workflowConfiguration ? (
+        <WorkflowConfigurationFields configuration={workflowConfiguration} />
+      ) : qaConfiguration ? (
+        <QaConfigurationFields configuration={qaConfiguration} />
+      ) : (
+        <section className="expanded-node-detail">
+          <dl>
+            <div>
+              <dt>Node type</dt>
+              <dd>{node.type}</dd>
+            </div>
+            <div>
+              <dt>Relationships</dt>
+              <dd>
+                {relationships.length
+                  ? relationships.join(" · ")
+                  : "No direct relationships"}
+              </dd>
+            </div>
+          </dl>
+          <p>
+            Detailed configuration remains available in the Inspector while the
+            network stays visible for panning.
+          </p>
+        </section>
+      )}
+    </aside>
+  );
+}
+
+type WorkflowConfiguration = {
+  name: string;
+  routingSummary: string;
+  purpose: string;
+  instructions: string;
+  sequence: string[];
+  finalResponseDefinition: string;
+  confirmationBehaviour: string;
+  state: "Active" | "Inactive";
+  version: string;
+};
+
+function workflowConfigurationFor(node: NetworkNode): WorkflowConfiguration {
+  if (node.label === "Create an Outcome")
+    return {
+      name: node.label,
+      routingSummary:
+        "Choose when the user asks to define or improve an Outcome.",
+      purpose:
+        "Produce a governed Outcome draft with clear completion evidence.",
+      instructions:
+        "Guide the user through outcome intent, delivery evidence and acceptance criteria in sequence.",
+      sequence: [
+        "Strategic Outcome Q&A",
+        "Outcome Delivery Review",
+        "General Governed Data Lookup",
+      ],
+      finalResponseDefinition:
+        "An editable Outcome definition with acceptance criteria and Mission alignment.",
+      confirmationBehaviour:
+        "Require explicit confirmation before preparing the final draft.",
+      state: "Active",
+      version: "Draft v0.3",
+    };
+  if (node.label === "Decision Brief")
+    return {
+      name: node.label,
+      routingSummary:
+        "Choose when an executive asks for a decision-ready portfolio brief.",
+      purpose:
+        "Create a concise decision brief with dependencies and owner actions.",
+      instructions:
+        "Collect the decision context, use portfolio health evidence and present the recommended next action.",
+      sequence: ["Portfolio Health"],
+      finalResponseDefinition:
+        "An executive decision brief with options, risks and an accountable owner.",
+      confirmationBehaviour:
+        "Require confirmation before the decision brief is treated as complete.",
+      state: "Active",
+      version: "Draft v0.2",
+    };
+  return {
+    name: node.label,
+    routingSummary:
+      "Choose when the user asks to create a Mission or needs a guided Mission definition.",
+    purpose:
+      "Produce a governed Mission draft with a clear strategic intent, measurable Key Results and owned delivery context.",
+    instructions:
+      "Orchestrate the required Agentic Q&As in order, asking focused follow-up questions and retaining the user's answers in the active conversation.",
+    sequence: [
+      "Mission Intent Q&A",
+      "Business Challenge Q&A",
+      "Strategic Outcome Q&A",
+      "Mission Status Review",
+    ],
+    finalResponseDefinition:
+      "An editable Mission draft containing its name, strategic intent, Key Results, decisions and RAID entries.",
+    confirmationBehaviour:
+      "Require explicit user confirmation before presenting the completed Mission draft as ready for human review.",
+    state: "Active",
+    version: "Draft v0.4",
+  };
+}
+
+function WorkflowConfigurationFields({
+  configuration,
+}: {
+  configuration: WorkflowConfiguration;
+}) {
+  return (
+    <section
+      className="workflow-configuration-fields"
+      aria-label="Agentic workflow configuration"
+    >
+      <div>
+        <span>Name</span>
+        <b>{configuration.name}</b>
+      </div>
+      <div>
+        <span>Routing Summary</span>
+        <p>{configuration.routingSummary}</p>
+      </div>
+      <div>
+        <span>Purpose</span>
+        <p>{configuration.purpose}</p>
+      </div>
+      <div>
+        <span>Instructions</span>
+        <p>{configuration.instructions}</p>
+      </div>
+      <div>
+        <span>Sequence</span>
+        <ol>
+          {configuration.sequence.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </div>
+      <div>
+        <span>Final Response Definition</span>
+        <p>{configuration.finalResponseDefinition}</p>
+      </div>
+      <div>
+        <span>Confirmation Behaviour</span>
+        <p>{configuration.confirmationBehaviour}</p>
+      </div>
+      <div className="workflow-state">
+        <span>Active / Inactive</span>
+        <b>{configuration.state}</b>
+      </div>
+      <div className="workflow-version">
+        <span>Version / Draft status</span>
+        <b>{configuration.version}</b>
+      </div>
+    </section>
+  );
+}
+
+type QaConfiguration = {
+  name: string;
+  routingSummary: string;
+  exampleRequests: string[];
+  instructions: string;
+  provider: string;
+  model: string;
+  reasoningProfile: string;
+  dataObjectRelationships: Array<{ name: string; horizon: string }>;
+  state: "Active" | "Inactive";
+  version: string;
+};
+
+function qaConfigurationFor(
+  _node: NetworkNode,
+  draft: AgentDraft,
+): QaConfiguration {
+  const relationships = draft.dataObjects.map((id) => ({
+    name:
+      id === "mission"
+        ? draft.qaName === "Portfolio Health"
+          ? "Portfolio"
+          : "Mission"
+        : id === "raid"
+          ? draft.qaName === "Portfolio Health"
+            ? "Outcomes"
+            : "RAID"
+          : "Chat History",
+    horizon: id === "chat-history" ? "Last 7 Days" : draft.timeHorizon,
+  }));
+  return {
+    name: draft.qaName,
+    routingSummary: draft.qaRoutingSummary,
+    exampleRequests: draft.qaExampleRequests.split("\n").filter(Boolean),
+    instructions: draft.qaDescription,
+    provider: draft.qaProvider,
+    model: draft.targetModel,
+    reasoningProfile: draft.reasoningLevel.toLowerCase(),
+    dataObjectRelationships: relationships,
+    state: draft.qaState,
+    version: draft.qaVersion,
+  };
+}
+
+function QaConfigurationFields({
+  configuration,
+}: {
+  configuration: QaConfiguration;
+}) {
+  return (
+    <section
+      className="qa-configuration-fields"
+      aria-label="Agentic Q&A configuration"
+    >
+      <div>
+        <span>Name</span>
+        <b>{configuration.name}</b>
+      </div>
+      <div>
+        <span>Routing Summary</span>
+        <p>{configuration.routingSummary}</p>
+      </div>
+      <div>
+        <span>Example Requests</span>
+        <ul>
+          {configuration.exampleRequests.map((request) => (
+            <li key={request}>{request}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <span>Instructions</span>
+        <p>{configuration.instructions}</p>
+      </div>
+      <div className="qa-model-fields">
+        <span>Provider</span>
+        <b>{configuration.provider}</b>
+        <span>Model</span>
+        <b>{configuration.model}</b>
+        <span>Reasoning Level / Profile</span>
+        <b>{configuration.reasoningProfile}</b>
+      </div>
+      <div>
+        <span>Data Object Relationships</span>
+        <dl className="qa-data-relationships">
+          {configuration.dataObjectRelationships.map((relationship) => (
+            <div key={relationship.name}>
+              <dt>{relationship.name}</dt>
+              <dd>{relationship.horizon}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div className="qa-state">
+        <span>Active / Inactive</span>
+        <b>{configuration.state}</b>
+      </div>
+      <div className="qa-version">
+        <span>Version / Draft status</span>
+        <b>{configuration.version}</b>
+      </div>
+    </section>
+  );
+}
+
+function QaConfigurationEditor({
+  draft,
+  isPortfolio,
+  updateDraft,
+}: {
+  draft: AgentDraft;
+  isPortfolio: boolean;
+  updateDraft: (changes: Partial<AgentDraft>) => void;
+}) {
+  const dataObjects = isPortfolio
+    ? [
+        { id: "mission", label: "Portfolio" },
+        { id: "raid", label: "Outcomes" },
+        { id: "chat-history", label: "Chat History" },
+      ]
+    : [
+        { id: "mission", label: "Mission" },
+        { id: "raid", label: "RAID" },
+        { id: "chat-history", label: "Chat History" },
+      ];
+  const toggleDataObject = (id: string) =>
+    updateDraft({
+      dataObjects: draft.dataObjects.includes(id)
+        ? draft.dataObjects.filter((item) => item !== id)
+        : [...draft.dataObjects, id],
+    });
+  const toggleRoute = (id: string) =>
+    updateDraft({
+      routingTargets: draft.routingTargets.includes(id)
+        ? draft.routingTargets.filter((item) => item !== id)
+        : [...draft.routingTargets, id],
+    });
+  return (
+    <section className="qa-configuration-editor" aria-label="Edit Agentic Q&A">
+      <label className="network-edit-field">
+        Name
+        <input
+          value={draft.qaName}
+          onChange={(event) => updateDraft({ qaName: event.target.value })}
+        />
+      </label>
+      <label className="network-edit-field">
+        Routing Summary
+        <textarea
+          value={draft.qaRoutingSummary}
+          onChange={(event) =>
+            updateDraft({ qaRoutingSummary: event.target.value })
+          }
+        />
+      </label>
+      <label className="network-edit-field">
+        Example Requests
+        <textarea
+          value={draft.qaExampleRequests}
+          onChange={(event) =>
+            updateDraft({ qaExampleRequests: event.target.value })
+          }
+          placeholder="One representative request per line"
+        />
+      </label>
+      <label className="network-edit-field">
+        Instructions
+        <textarea
+          value={draft.qaDescription}
+          onChange={(event) =>
+            updateDraft({ qaDescription: event.target.value })
+          }
+        />
+      </label>
+      <div className="qa-editor-model-fields">
+        <label className="network-edit-field">
+          Provider
+          <select
+            value={draft.qaProvider}
+            onChange={(event) =>
+              updateDraft({ qaProvider: event.target.value })
+            }
+          >
+            <option>openai</option>
+          </select>
+        </label>
+        <label className="network-edit-field">
+          Model
+          <select
+            value={draft.targetModel}
+            onChange={(event) =>
+              updateDraft({ targetModel: event.target.value })
+            }
+          >
+            <option>mini</option>
+          </select>
+        </label>
+        <label className="network-edit-field">
+          Reasoning Level / Profile
+          <select
+            value={draft.reasoningLevel}
+            onChange={(event) =>
+              updateDraft({ reasoningLevel: event.target.value })
+            }
+          >
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+          </select>
+        </label>
+      </div>
+      <fieldset className="network-edit-field qa-data-object-editor">
+        <legend>Data Object Relationships</legend>
+        {dataObjects.map((item) => (
+          <div key={item.id}>
+            <label>
+              <input
+                type="checkbox"
+                checked={draft.dataObjects.includes(item.id)}
+                onChange={() => toggleDataObject(item.id)}
+              />{" "}
+              {item.label}
+            </label>
+            {draft.dataObjects.includes(item.id) && (
+              <select
+                aria-label={`${item.label} time horizon`}
+                value={
+                  item.id === "chat-history" ? "Last 7 Days" : draft.timeHorizon
+                }
+                onChange={(event) =>
+                  updateDraft({ timeHorizon: event.target.value })
+                }
+                disabled={item.id === "chat-history"}
+              >
+                <option>Current reporting period</option>
+                <option>Last 7 Days</option>
+                <option>Current quarter</option>
+              </select>
+            )}
+          </div>
+        ))}
+      </fieldset>
+      <fieldset className="network-edit-field">
+        <legend>Routing relationship</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={draft.routingTargets.includes("qa")}
+            onChange={() => toggleRoute("qa")}
+          />{" "}
+          Route from Interactions
+        </label>
+      </fieldset>
+      <div className="qa-editor-footer">
+        <label className="network-edit-field">
+          Active / Inactive
+          <select
+            value={draft.qaState}
+            onChange={(event) =>
+              updateDraft({
+                qaState: event.target.value as AgentDraft["qaState"],
+              })
+            }
+          >
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </label>
+        <label className="network-edit-field">
+          Version / Draft status
+          <input
+            value={draft.qaVersion}
+            onChange={(event) => updateDraft({ qaVersion: event.target.value })}
+          />
+        </label>
       </div>
     </section>
   );
@@ -2651,17 +3279,8 @@ function NetworkInspectorPanel({
   const isPortfolio = agentName === "Portfolio Navigator";
   const capability = isPortfolio ? "Portfolio Health" : "RAID Analysis";
   const workflow = isPortfolio ? "Decision Brief" : "Create a Mission";
-  const dataObjectOptions = isPortfolio
-    ? [
-        { id: "mission", label: "Portfolio" },
-        { id: "raid", label: "Outcomes" },
-        { id: "chat-history", label: "Chat History" },
-      ]
-    : [
-        { id: "mission", label: "Mission" },
-        { id: "raid", label: "RAID" },
-        { id: "chat-history", label: "Chat History" },
-      ];
+  const workflowConfiguration =
+    node.type === "Form / workflow" ? workflowConfigurationFor(node) : null;
   const baseDescription =
     node.type === "Q&A capability"
       ? `Answers ${isPortfolio ? "portfolio health and decision" : "material delivery-risk"} questions using structured context.`
@@ -2721,67 +3340,15 @@ function NetworkInspectorPanel({
           )}
         </div>
       </div>
+      {workflowConfiguration && (
+        <WorkflowConfigurationFields configuration={workflowConfiguration} />
+      )}
       {node.type === "Q&A capability" && (
-        <>
-          <label className="network-edit-field">
-            Purpose
-            <textarea
-              value={draft.qaDescription}
-              onChange={(event) =>
-                updateDraft({ qaDescription: event.target.value })
-              }
-            />
-          </label>
-          <label className="network-edit-field">
-            Target model
-            <select
-              value={draft.targetModel}
-              onChange={(event) =>
-                updateDraft({ targetModel: event.target.value })
-              }
-            >
-              <option>Governed fixture model</option>
-              <option>Standard fixture model</option>
-            </select>
-          </label>
-          <label className="network-edit-field">
-            Time horizon
-            <select
-              value={draft.timeHorizon}
-              onChange={(event) =>
-                updateDraft({ timeHorizon: event.target.value })
-              }
-            >
-              <option>Current reporting period</option>
-              <option>Last 7 Days</option>
-              <option>Current quarter</option>
-            </select>
-          </label>
-          <fieldset className="network-edit-field">
-            <legend>Data Objects</legend>
-            {dataObjectOptions.map((item) => (
-              <label key={item.id}>
-                <input
-                  type="checkbox"
-                  checked={draft.dataObjects.includes(item.id)}
-                  onChange={() => toggleDataObject(item.id)}
-                />{" "}
-                {item.label}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="network-edit-field">
-            <legend>Routing relationship</legend>
-            <label>
-              <input
-                type="checkbox"
-                checked={draft.routingTargets.includes("qa")}
-                onChange={() => toggleRoute("qa")}
-              />{" "}
-              Route from Interactions
-            </label>
-          </fieldset>
-        </>
+        <QaConfigurationEditor
+          draft={draft}
+          isPortfolio={isPortfolio}
+          updateDraft={updateDraft}
+        />
       )}
       {node.type === "Data Object" && (
         <>
