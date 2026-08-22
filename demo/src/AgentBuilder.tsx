@@ -2217,24 +2217,24 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      data: 151,
-      question: 449,
-      workflow: 747,
-      interactions: 1045,
-    })[laneFor(node)] ?? 1045;
-  const widthFor = () => 196;
-  const heightFor = () => 44;
+      data: 187,
+      question: 562,
+      workflow: 937,
+      interactions: 1312,
+    })[laneFor(node)] ?? 1312;
+  const widthFor = () => 250;
+  const heightFor = () => 48;
   const labelsFor = (label: string) => {
     const words = label.split(/\s+/);
-    if (label.length <= 22) return [label];
+    if (label.length <= 27) return [label];
     const lines = [""];
     words.forEach((word) => {
       const last = lines.length - 1;
-      if (`${lines[last]} ${word}`.trim().length <= 22 || lines.length === 2)
+      if (`${lines[last]} ${word}`.trim().length <= 27 || lines.length === 2)
         lines[last] = `${lines[last]} ${word}`.trim();
       else lines.push(word);
     });
-    if (lines[1]?.length > 24) lines[1] = `${lines[1].slice(0, 23).trim()}…`;
+    if (lines[1]?.length > 29) lines[1] = `${lines[1].slice(0, 28).trim()}…`;
     return lines.slice(0, 2);
   };
   const groupedDataNodes = new Map(
@@ -2250,14 +2250,14 @@ function MissionControlAgentNetwork({
     (typeof dataGroups)[number],
     { top: number; height: number; label: string }
   >();
-  let dataCursor = 122;
+  let dataCursor = 128;
   dataGroups.forEach((group) => {
     const members = groupedDataNodes.get(group) ?? [];
     const top = dataCursor - 50;
     members.forEach((node, index) =>
-      dataPositions.set(node.id, dataCursor + index * 64),
+      dataPositions.set(node.id, dataCursor + index * 82),
     );
-    const height = Math.max(76, members.length * 64 + 16);
+    const height = Math.max(82, members.length * 82 + 22);
     dataGroupBounds.set(group, {
       top,
       height,
@@ -2266,7 +2266,7 @@ function MissionControlAgentNetwork({
           ? "Mission Surface"
           : `${group.charAt(0).toUpperCase()}${group.slice(1)}`,
     });
-    dataCursor += members.length * 64 + 34;
+    dataCursor += members.length * 82 + 42;
   });
   const laneNodes = new Map<string, NetworkNode[]>();
   agent.nodes
@@ -2277,14 +2277,14 @@ function MissionControlAgentNetwork({
         node,
       ]),
     );
-  const worldWidth = 1200;
+  const worldWidth = 1500;
   const worldHeight = Math.max(860, dataCursor + 70);
   const canvasHeight = worldHeight;
   const targetYFor = (node: NetworkNode) => {
     if (laneFor(node) === "data") return dataPositions.get(node.id) ?? 128;
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
-    return 122 + index * 66;
+    return 128 + index * 82;
   };
 
   useEffect(() => {
@@ -2377,7 +2377,7 @@ function MissionControlAgentNetwork({
         <svg
           viewBox={`0 0 ${worldWidth} ${worldHeight}`}
           style={{ height: `${canvasHeight}px` }}
-          preserveAspectRatio="xMidYMin meet"
+          preserveAspectRatio="none"
           role="img"
           aria-label={`${agent.name} connected components`}
           onPointerDown={(event) => {
@@ -2431,28 +2431,28 @@ function MissionControlAgentNetwork({
                 className="area-data"
                 x="8"
                 y="10"
-                width="286"
+                width="362"
                 height={worldHeight - 20}
               />
               <rect
                 className="area-question"
-                x="306"
+                x="380"
                 y="10"
-                width="286"
+                width="362"
                 height={worldHeight - 20}
               />
               <rect
                 className="area-workflow"
-                x="604"
+                x="752"
                 y="10"
-                width="286"
+                width="362"
                 height={worldHeight - 20}
               />
               <rect
                 className="area-interactions"
-                x="902"
+                x="1124"
                 y="10"
-                width="286"
+                width="362"
                 height={worldHeight - 20}
               />
             </g>
@@ -2463,12 +2463,12 @@ function MissionControlAgentNetwork({
                 return (
                   <g key={group}>
                     <rect
-                      x="38"
+                      x="45"
                       y={bounds.top}
-                      width="226"
+                      width="284"
                       height={bounds.height}
                     />
-                    <text x="50" y={bounds.top + 20}>
+                    <text x="58" y={bounds.top + 20}>
                       {bounds.label}
                     </text>
                   </g>
