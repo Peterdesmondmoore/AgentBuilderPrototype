@@ -1339,7 +1339,7 @@ function AgentNetwork({
   const [activeLayer, setActiveLayer] = useState<NetworkLayer>("All");
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("agent-builder");
-  const [selectedNodeId, setSelectedNodeId] = useState("chat");
+  const [selectedNodeId, setSelectedNodeId] = useState("");
   const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const configuredAgent =
     agentNetworks.find((agent) => agent.id === selectedAgentId) ??
@@ -1402,7 +1402,7 @@ function AgentNetwork({
   const resetView = () => setView({ scale: 1, x: 0, y: 0 });
   const selectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
-    setSelectedNodeId("chat");
+    setSelectedNodeId("");
     setSelectedFeedbackId(null);
     setChatInput("");
     setExecutionPath([]);
@@ -2090,6 +2090,17 @@ function AgentNetwork({
 }
 
 type MissionControlAgentNode = NetworkNode & { width: number; height: number };
+type AgentNetworkArea =
+  "All" | "timeliness" | "data" | "question" | "workflow" | "interactions";
+
+const agentNetworkAreas: Array<{ id: AgentNetworkArea; label: string }> = [
+  { id: "All", label: "All areas" },
+  { id: "timeliness", label: "Timeliness" },
+  { id: "data", label: "Data Objects" },
+  { id: "question", label: "Agentic Q&A" },
+  { id: "workflow", label: "Workflow" },
+  { id: "interactions", label: "Interactions" },
+];
 
 function MissionControlAgentNetwork({
   agent,
@@ -2104,6 +2115,7 @@ function MissionControlAgentNetwork({
 }) {
   const [nodes, setNodes] = useState<MissionControlAgentNode[]>([]);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
+  const [activeArea, setActiveArea] = useState<AgentNetworkArea>("All");
   const canvasPan = useRef<{ pointerId: number; x: number; y: number } | null>(
     null,
   );
@@ -2149,14 +2161,13 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      timeliness: 100,
-      data: 400,
-      question: 825,
-      workflow: 1115,
-      interactions: 1375,
-    })[laneFor(node)] ?? 1375;
-  const widthFor = (node: NetworkNode) =>
-    node.type === "Form / workflow" ? 180 : 172;
+      timeliness: 151,
+      data: 449,
+      question: 747,
+      workflow: 1045,
+      interactions: 1343,
+    })[laneFor(node)] ?? 1343;
+  const widthFor = () => 196;
   const heightFor = () => 44;
   const labelsFor = (label: string) => {
     const words = label.split(/\s+/);
@@ -2184,14 +2195,14 @@ function MissionControlAgentNetwork({
     (typeof dataGroups)[number],
     { top: number; height: number; label: string }
   >();
-  let dataCursor = 128;
+  let dataCursor = 122;
   dataGroups.forEach((group) => {
     const members = groupedDataNodes.get(group) ?? [];
-    const top = dataCursor - 54;
+    const top = dataCursor - 50;
     members.forEach((node, index) =>
-      dataPositions.set(node.id, dataCursor + index * 76),
+      dataPositions.set(node.id, dataCursor + index * 64),
     );
-    const height = Math.max(78, members.length * 76 + 10);
+    const height = Math.max(76, members.length * 64 + 16);
     dataGroupBounds.set(group, {
       top,
       height,
@@ -2200,7 +2211,7 @@ function MissionControlAgentNetwork({
           ? "Mission Surface"
           : `${group.charAt(0).toUpperCase()}${group.slice(1)}`,
     });
-    dataCursor += members.length * 76 + 42;
+    dataCursor += members.length * 64 + 34;
   });
   const laneNodes = new Map<string, NetworkNode[]>();
   agent.nodes
@@ -2218,13 +2229,13 @@ function MissionControlAgentNetwork({
     if (laneFor(node) === "data") return dataPositions.get(node.id) ?? 128;
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
-    return 128 + index * 82;
+    return 122 + index * 66;
   };
 
   useEffect(() => {
     const graphNodes = agent.nodes.map((node) => ({
       ...node,
-      width: widthFor(node),
+      width: widthFor(),
       height: heightFor(),
       x: columnFor(node),
       y: targetYFor(node),
@@ -2234,11 +2245,64 @@ function MissionControlAgentNetwork({
   }, [agent, worldHeight]);
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const related = new Set(
-    agent.edges
-      .filter(([from, to]) => from === selectedNodeId || to === selectedNodeId)
-      .flat(),
+  const areaOrder: Record<Exclude<AgentNetworkArea, "All">, number> = {
+    timeliness: 0,
+    data: 1,
+    question: 2,
+    workflow: 3,
+    interactions: 4,
+  };
+  const directedEdges = agent.edges
+    .filter(([from, to]) => byId.has(from) && byId.has(to))
+    .map(([from, to]) =>
+      areaOrder[laneFor(byId.get(from)!)] <= areaOrder[laneFor(byId.get(to)!)]
+        ? ([from, to] as [string, string])
+        : ([to, from] as [string, string]),
+    );
+  const traceLineage = (
+    origin: string,
+    direction: "upstream" | "downstream",
+  ) => {
+    const visited = new Set([origin]);
+    const queue = [origin];
+    while (queue.length) {
+      const current = queue.shift()!;
+      directedEdges.forEach(([from, to]) => {
+        const next =
+          direction === "downstream" && from === current
+            ? to
+            : direction === "upstream" && to === current
+              ? from
+              : null;
+        if (next && !visited.has(next)) {
+          visited.add(next);
+          queue.push(next);
+        }
+      });
+    }
+    return visited;
+  };
+  const hasSelection = Boolean(selectedNodeId && byId.has(selectedNodeId));
+  const lineage = hasSelection
+    ? new Set([
+        ...traceLineage(selectedNodeId, "upstream"),
+        ...traceLineage(selectedNodeId, "downstream"),
+      ])
+    : new Set<string>();
+  const visibleNodeIds = new Set(
+    nodes
+      .filter(
+        (node) =>
+          activeArea === "All" ||
+          laneFor(node) === activeArea ||
+          (hasSelection && lineage.has(node.id)),
+      )
+      .map((node) => node.id),
   );
+  const chooseArea = (area: AgentNetworkArea) => {
+    setActiveArea(area);
+    onSelect("");
+  };
   const setZoom = (amount: number) =>
     setView((current) => ({
       ...current,
@@ -2271,6 +2335,22 @@ function MissionControlAgentNetwork({
           </button>
         </div>
       </header>
+      <div
+        className="mission-control-agent-filters"
+        aria-label="Filter network areas"
+      >
+        {agentNetworkAreas.map((area) => (
+          <button
+            key={area.id}
+            type="button"
+            className={`area-${area.id.toLowerCase()} ${activeArea === area.id ? "is-active" : ""}`}
+            aria-pressed={activeArea === area.id}
+            onClick={() => chooseArea(area.id)}
+          >
+            {area.label}
+          </button>
+        ))}
+      </div>
       <div className="mission-control-agent-viewport">
         <svg
           viewBox={`0 0 ${worldWidth} ${worldHeight}`}
@@ -2325,11 +2405,41 @@ function MissionControlAgentNetwork({
               </marker>
             </defs>
             <g className="mission-control-agent-stage-bands" aria-hidden="true">
-              <rect x="8" y="10" width="184" height={worldHeight - 20} />
-              <rect x="206" y="10" width="388" height={worldHeight - 20} />
-              <rect x="608" y="10" width="434" height={worldHeight - 20} />
-              <rect x="1056" y="10" width="194" height={worldHeight - 20} />
-              <rect x="1264" y="10" width="228" height={worldHeight - 20} />
+              <rect
+                className="area-timeliness"
+                x="8"
+                y="10"
+                width="286"
+                height={worldHeight - 20}
+              />
+              <rect
+                className="area-data"
+                x="306"
+                y="10"
+                width="286"
+                height={worldHeight - 20}
+              />
+              <rect
+                className="area-question"
+                x="604"
+                y="10"
+                width="286"
+                height={worldHeight - 20}
+              />
+              <rect
+                className="area-workflow"
+                x="902"
+                y="10"
+                width="286"
+                height={worldHeight - 20}
+              />
+              <rect
+                className="area-interactions"
+                x="1200"
+                y="10"
+                width="286"
+                height={worldHeight - 20}
+              />
             </g>
             <g className="mission-control-agent-data-groups" aria-hidden="true">
               {dataGroups.map((group) => {
@@ -2338,12 +2448,12 @@ function MissionControlAgentNetwork({
                 return (
                   <g key={group}>
                     <rect
-                      x="286"
+                      x="336"
                       y={bounds.top}
-                      width="228"
+                      width="226"
                       height={bounds.height}
                     />
-                    <text x="298" y={bounds.top + 20}>
+                    <text x="348" y={bounds.top + 20}>
                       {bounds.label}
                     </text>
                   </g>
@@ -2351,19 +2461,19 @@ function MissionControlAgentNetwork({
               })}
             </g>
             <g className="mission-control-agent-layer-labels">
-              <text x="100" y="40">
+              <text className="area-timeliness" x="151" y="40">
                 Timeliness
               </text>
-              <text x="400" y="40">
+              <text className="area-data" x="449" y="40">
                 Data Objects
               </text>
-              <text x="825" y="40">
+              <text className="area-question" x="747" y="40">
                 Agentic Q&amp;A
               </text>
-              <text x="1115" y="40">
+              <text className="area-workflow" x="1045" y="40">
                 Agentic Workflow
               </text>
-              <text x="1375" y="40">
+              <text className="area-interactions" x="1343" y="40">
                 Interactions
               </text>
             </g>
@@ -2372,11 +2482,20 @@ function MissionControlAgentNetwork({
                 const source = byId.get(sourceId);
                 const target = byId.get(targetId);
                 if (!source || !target) return null;
+                if (
+                  !visibleNodeIds.has(sourceId) ||
+                  !visibleNodeIds.has(targetId)
+                )
+                  return null;
                 const sourceStep = executionPath.indexOf(sourceId);
                 const targetStep = executionPath.indexOf(targetId);
                 const executed = sourceStep >= 0 && targetStep >= 0;
                 const left = source.x <= target.x ? source : target;
                 const right = source.x <= target.x ? target : source;
+                const inLineage =
+                  hasSelection &&
+                  lineage.has(sourceId) &&
+                  lineage.has(targetId);
                 const sameLane = Math.abs(left.x - right.x) < 4;
                 const startX = left.x + left.width / 2;
                 const endX = right.x - right.width / 2;
@@ -2387,80 +2506,83 @@ function MissionControlAgentNetwork({
                 return (
                   <path
                     key={`${sourceId}-${targetId}`}
-                    className={`${sourceId === selectedNodeId || targetId === selectedNodeId ? "is-related" : ""} ${executed ? "is-executed" : ""}`}
+                    className={`area-${laneFor(left)} ${inLineage ? "is-lineage" : hasSelection ? "is-muted" : ""} ${executed ? "is-executed" : ""}`}
                     d={path}
                     markerEnd="url(#agent-network-arrow)"
                   />
                 );
               })}
             </g>
-            {nodes.map((node) => (
-              <g
-                key={node.id}
-                className={`mission-control-agent-node ${node.id === selectedNodeId ? "is-selected" : related.has(node.id) ? "is-related" : selectedNodeId ? "is-muted" : ""} ${executionPath.includes(node.id) ? "is-executed" : ""}`}
-                transform={`translate(${node.x ?? 0} ${node.y ?? 0})`}
-                role="button"
-                tabIndex={0}
-                aria-pressed={node.id === selectedNodeId}
-                aria-label={`Inspect ${node.label}`}
-                onClick={() => onSelect(node.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(node.id);
-                  }
-                }}
-              >
-                <rect
-                  className="mission-control-agent-hit"
-                  x={-node.width / 2 - 7}
-                  y={-node.height / 2 - 7}
-                  width={node.width + 14}
-                  height={node.height + 14}
-                  rx="9"
-                />
-                <rect
-                  className="mission-control-agent-core"
-                  x={-node.width / 2}
-                  y={-node.height / 2}
-                  width={node.width}
-                  height={node.height}
-                  rx="6"
-                />
-                <text
-                  className="mission-control-agent-glyph"
-                  x={-node.width / 2 + 14}
-                  y="4"
+            {nodes.map((node) => {
+              if (!visibleNodeIds.has(node.id)) return null;
+              return (
+                <g
+                  key={node.id}
+                  className={`mission-control-agent-node area-${laneFor(node)} ${node.id === selectedNodeId ? "is-selected" : ""} ${hasSelection && lineage.has(node.id) ? "is-lineage" : hasSelection ? "is-muted" : ""} ${executionPath.includes(node.id) ? "is-executed" : ""}`}
+                  transform={`translate(${node.x ?? 0} ${node.y ?? 0})`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={node.id === selectedNodeId}
+                  aria-label={`Inspect ${node.label}`}
+                  onClick={() => onSelect(node.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect(node.id);
+                    }
+                  }}
                 >
-                  {node.type === "Chat"
-                    ? "···"
-                    : node.type === "Form / workflow"
-                      ? "W"
-                      : node.type === "Q&A capability" ||
-                          node.type === "Capability"
-                        ? "?"
-                        : node.type === "Data Object" ||
-                            node.type === "Knowledge source"
-                          ? "D"
-                          : node.type.charAt(0)}
-                </text>
-                <text
-                  className="mission-control-agent-label"
-                  x={-node.width / 2 + 28}
-                  y={labelsFor(node.label).length === 1 ? 4 : -4}
-                >
-                  {labelsFor(node.label).map((line, lineIndex) => (
-                    <tspan
-                      key={line}
-                      x={-node.width / 2 + 28}
-                      dy={lineIndex === 0 ? 0 : 13}
-                    >
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
-              </g>
-            ))}
+                  <rect
+                    className="mission-control-agent-hit"
+                    x={-node.width / 2 - 7}
+                    y={-node.height / 2 - 7}
+                    width={node.width + 14}
+                    height={node.height + 14}
+                    rx="9"
+                  />
+                  <rect
+                    className="mission-control-agent-core"
+                    x={-node.width / 2}
+                    y={-node.height / 2}
+                    width={node.width}
+                    height={node.height}
+                    rx="6"
+                  />
+                  <text
+                    className="mission-control-agent-glyph"
+                    x={-node.width / 2 + 14}
+                    y="4"
+                  >
+                    {node.type === "Chat"
+                      ? "···"
+                      : node.type === "Form / workflow"
+                        ? "W"
+                        : node.type === "Q&A capability" ||
+                            node.type === "Capability"
+                          ? "?"
+                          : node.type === "Data Object" ||
+                              node.type === "Knowledge source"
+                            ? "D"
+                            : node.type.charAt(0)}
+                  </text>
+                  <text
+                    className="mission-control-agent-label"
+                    x={-node.width / 2 + 28}
+                    y={labelsFor(node.label).length === 1 ? 4 : -4}
+                  >
+                    {labelsFor(node.label).map((line, lineIndex) => (
+                      <tspan
+                        key={line}
+                        x={-node.width / 2 + 28}
+                        dy={lineIndex === 0 ? 0 : 13}
+                      >
+                        {line}
+                      </tspan>
+                    ))}
+                  </text>
+                </g>
+              );
+            })}
           </g>
         </svg>
       </div>

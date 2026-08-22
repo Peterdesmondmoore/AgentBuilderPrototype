@@ -56,6 +56,54 @@
   border-bottom: 1px solid #ffffff18;
   background: #1b2943;
 }
+.mission-control-agent-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 18px;
+  border-bottom: 1px solid #ffffff14;
+  background: #192741;
+}
+.mission-control-agent-filters button {
+  border: 1px solid #a9bad43d;
+  border-radius: 999px;
+  background: #ffffff08;
+  padding: 6px 9px;
+  color: #c7d3e8;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.mission-control-agent-filters button:hover,
+.mission-control-agent-filters button:focus-visible,
+.mission-control-agent-filters button.is-active {
+  color: #f5f8fe;
+  outline: none;
+}
+.mission-control-agent-filters .area-all.is-active {
+  border-color: #c3d0e2;
+  background: #52647d;
+}
+.mission-control-agent-filters .area-timeliness.is-active {
+  border-color: #e6b670;
+  background: #9b642f;
+}
+.mission-control-agent-filters .area-data.is-active {
+  border-color: #cf9ee5;
+  background: #745188;
+}
+.mission-control-agent-filters .area-question.is-active {
+  border-color: #7ed5e3;
+  background: #276d82;
+}
+.mission-control-agent-filters .area-workflow.is-active {
+  border-color: #98d7af;
+  background: #347258;
+}
+.mission-control-agent-filters .area-interactions.is-active {
+  border-color: #9ebfee;
+  background: #3f5f98;
+}
 .mission-control-agent-network header > div:first-child {
   display: grid;
   gap: 3px;
@@ -107,17 +155,36 @@
   touch-action: none;
 }
 .mission-control-agent-stage-bands rect {
-  fill: #ffffff06;
-  stroke: #b5c6df18;
   stroke-width: 1;
 }
+.mission-control-agent-stage-bands rect.area-timeliness {
+  fill: #d3943514;
+  stroke: #d9a55459;
+}
+.mission-control-agent-stage-bands rect.area-data {
+  fill: #9a65b514;
+  stroke: #b884d05e;
+}
+.mission-control-agent-stage-bands rect.area-question {
+  fill: #3aa4bd14;
+  stroke: #65c8db5e;
+}
+.mission-control-agent-stage-bands rect.area-workflow {
+  fill: #4ba36c14;
+  stroke: #79ca975e;
+}
+.mission-control-agent-stage-bands rect.area-interactions {
+  fill: #5386d614;
+  stroke: #84ace95e;
+}
 .mission-control-agent-stage-bands rect:nth-child(even) {
-  fill: #ffffff03;
+  opacity: 0.92;
 }
 .mission-control-agent-data-groups rect {
-  fill: #0f1b304c;
-  stroke: #a8bfdc8c;
-  stroke-width: 1.6;
+  fill: #9a65b514;
+  stroke: #c496d48f;
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
   rx: 7px;
 }
 .mission-control-agent-data-groups text {
@@ -130,19 +197,37 @@
 }
 .mission-control-agent-edges path {
   fill: none;
-  stroke: #6db8d8;
+  stroke: #9fb2cc;
   stroke-width: 1.7;
   opacity: 0.25;
   vector-effect: non-scaling-stroke;
+}
+.mission-control-agent-edges path.area-timeliness {
+  stroke: #d9a554;
+}
+.mission-control-agent-edges path.area-data {
+  stroke: #bb83d2;
+}
+.mission-control-agent-edges path.area-question {
+  stroke: #65c8db;
+}
+.mission-control-agent-edges path.area-workflow {
+  stroke: #79ca97;
+}
+.mission-control-agent-edges path.area-interactions {
+  stroke: #84ace9;
 }
 .mission-control-agent-edges marker path {
   fill: #6db8d8;
   stroke: none;
   opacity: 0.75;
 }
-.mission-control-agent-edges path.is-related {
-  stroke: #82ded6;
-  opacity: 0.85;
+.mission-control-agent-edges path.is-lineage {
+  opacity: 0.95;
+  stroke-width: 2.5;
+}
+.mission-control-agent-edges path.is-muted {
+  opacity: 0.06;
 }
 .mission-control-agent-edges path.is-executed {
   stroke: #82ded6;
@@ -155,6 +240,21 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-anchor: middle;
+}
+.mission-control-agent-layer-labels text.area-timeliness {
+  fill: #e6b670;
+}
+.mission-control-agent-layer-labels text.area-data {
+  fill: #cf9ee5;
+}
+.mission-control-agent-layer-labels text.area-question {
+  fill: #7ed5e3;
+}
+.mission-control-agent-layer-labels text.area-workflow {
+  fill: #98d7af;
+}
+.mission-control-agent-layer-labels text.area-interactions {
+  fill: #9ebfee;
 }
 .mission-control-agent-layer-labels .data-group {
   fill: #9eb0cb;
@@ -171,7 +271,7 @@
   outline: none;
 }
 .mission-control-agent-node.is-muted {
-  opacity: 0.23;
+  opacity: 0.16;
 }
 .mission-control-agent-node.is-executed {
   opacity: 1;
@@ -181,7 +281,7 @@
 }
 .mission-control-agent-core {
   fill: #203553;
-  stroke: #74cfc8;
+  stroke: #aabbd2;
   stroke-width: 1.4;
   filter: drop-shadow(0 5px 10px #07112175);
   vector-effect: non-scaling-stroke;
@@ -189,15 +289,43 @@
     fill 0.18s ease,
     stroke-width 0.18s ease;
 }
+.mission-control-agent-node.area-timeliness .mission-control-agent-core {
+  fill: #4b3520;
+  stroke: #dfa34e;
+}
+.mission-control-agent-node.area-data .mission-control-agent-core {
+  fill: #3e2b4a;
+  stroke: #c08ad7;
+}
+.mission-control-agent-node.area-question .mission-control-agent-core {
+  fill: #1f4653;
+  stroke: #65c8db;
+}
+.mission-control-agent-node.area-workflow .mission-control-agent-core {
+  fill: #294538;
+  stroke: #79ca97;
+}
+.mission-control-agent-node.area-interactions .mission-control-agent-core {
+  fill: #283e68;
+  stroke: #84ace9;
+}
 .mission-control-agent-node:hover .mission-control-agent-core,
 .mission-control-agent-node:focus .mission-control-agent-core {
   fill: #294462;
   stroke-width: 2;
 }
 .mission-control-agent-node.is-selected .mission-control-agent-core {
-  stroke: #7ccfc8;
+  stroke: #f4f8ff;
   stroke-width: 3;
   filter: drop-shadow(0 0 9px #7ccfc88c);
+}
+.mission-control-agent-node.is-lineage .mission-control-agent-core {
+  stroke-width: 2.3;
+  filter: drop-shadow(0 0 7px #d8e7fa73);
+}
+.mission-control-agent-node.is-selected.is-lineage .mission-control-agent-core {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 10px #f4f8ff99);
 }
 .mission-control-agent-node.is-executed .mission-control-agent-core {
   stroke-width: 2.8;
@@ -210,10 +338,25 @@
   text-anchor: middle;
   pointer-events: none;
 }
+.mission-control-agent-node.area-timeliness .mission-control-agent-glyph {
+  fill: #e6b670;
+}
+.mission-control-agent-node.area-data .mission-control-agent-glyph {
+  fill: #cf9ee5;
+}
+.mission-control-agent-node.area-question .mission-control-agent-glyph {
+  fill: #7ed5e3;
+}
+.mission-control-agent-node.area-workflow .mission-control-agent-glyph {
+  fill: #98d7af;
+}
+.mission-control-agent-node.area-interactions .mission-control-agent-glyph {
+  fill: #9ebfee;
+}
 .mission-control-agent-label {
   fill: #f2f6fd;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   text-anchor: start;
   pointer-events: none;
 }
