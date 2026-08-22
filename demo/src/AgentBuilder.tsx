@@ -2257,11 +2257,12 @@ function MissionControlAgentNetwork({
   const sideWithin = (
     node: NetworkNode,
     predicate: (candidate: NetworkNode) => boolean,
+    columns = 2,
   ) =>
     Math.max(
       0,
       agent.nodes.filter(predicate).findIndex((item) => item.id === node.id),
-    ) % 2;
+    ) % columns;
   const laneFor = (node: NetworkNode) => {
     if (
       node.label === "Current Date and Time" ||
@@ -2273,7 +2274,7 @@ function MissionControlAgentNetwork({
     ) {
       const group = dataGroupFor(node);
       if (group === "mission-surface")
-        return `data-mission-${sideWithin(node, (candidate) => ["Data Object", "Knowledge source", "System Context"].includes(candidate.type) && dataGroupFor(candidate) === "mission-surface")}`;
+        return `data-mission-${sideWithin(node, (candidate) => ["Data Object", "Knowledge source", "System Context"].includes(candidate.type) && dataGroupFor(candidate) === "mission-surface", 3)}`;
       return `data-${group}`;
     }
     if (node.type === "Q&A capability" || node.type === "Capability")
@@ -2285,25 +2286,19 @@ function MissionControlAgentNetwork({
   };
   const columnFor = (node: NetworkNode) =>
     ({
-      timeliness: 115,
-      "data-policies": 285,
-      "data-general": 420,
-      "data-mission-0": 555,
-      "data-mission-1": 680,
-      "question-control": 790,
-      "question-0": 865,
-      "question-1": 950,
-      workflow: 1090,
-      chat: 1280,
-    })[laneFor(node)] ?? 1280;
-  const radiusFor = (node: NetworkNode) =>
-    node.type === "Agent"
-      ? 60
-      : node.type === "Chat" ||
-          node.type === "Router" ||
-          node.type === "Response"
-        ? 40
-        : 47;
+      timeliness: 90,
+      "data-policies": 230,
+      "data-general": 365,
+      "data-mission-0": 500,
+      "data-mission-1": 610,
+      "data-mission-2": 720,
+      "question-control": 815,
+      "question-0": 900,
+      "question-1": 985,
+      workflow: 1120,
+      chat: 1310,
+    })[laneFor(node)] ?? 1310;
+  const radiusFor = (node: NetworkNode) => (node.type === "Agent" ? 42 : 34);
   const labelsFor = (label: string) => {
     const words = label.split(/\s+/);
     if (label.length <= 16) return [label];
@@ -2327,13 +2322,13 @@ function MissionControlAgentNetwork({
     1,
     ...[...laneNodes.values()].map((lane) => lane.length),
   );
-  const worldHeight = Math.max(700, largestLane * 112 + 190);
+  const worldHeight = Math.max(785, largestLane * 130 + 155);
   const targetYFor = (node: NetworkNode) => {
     const peers = laneNodes.get(laneFor(node)) ?? [node];
     const index = peers.findIndex((peer) => peer.id === node.id);
     return peers.length === 1
       ? worldHeight / 2
-      : 140 + index * ((worldHeight - 280) / (peers.length - 1));
+      : 112 + index * ((worldHeight - 224) / (peers.length - 1));
   };
 
   useEffect(() => {
@@ -2389,9 +2384,14 @@ function MissionControlAgentNetwork({
       .velocityDecay(0.5);
     simulation.stop();
     for (let tick = 0; tick < 140; tick += 1) simulation.tick();
-    setNodes(graphNodes.map((node) => ({ ...node })));
+    setNodes(graphNodes.map((node) => ({ ...node, x: columnFor(node) })));
     simulation.on("tick", () =>
-      setNodes(graphNodes.map((node) => ({ ...node }))),
+      setNodes(
+        graphNodes.map((node) => ({
+          ...node,
+          x: drag.current?.id === node.id ? node.x : columnFor(node),
+        })),
+      ),
     );
     simulationRef.current = simulation;
     return () => {
@@ -2418,6 +2418,7 @@ function MissionControlAgentNetwork({
     event.stopPropagation();
     const node = simulationRef.current?.nodes().find((item) => item.id === id);
     if (node) {
+      node.x = columnFor(node);
       node.fx = node.x;
       node.fy = node.y;
     }
@@ -2529,31 +2530,31 @@ function MissionControlAgentNetwork({
         >
           <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
             <g className="mission-control-agent-layer-labels">
-              <text x="115" y="42">
+              <text x="90" y="42">
                 Timeliness
               </text>
-              <text className="data-group" x="115" y="64">
+              <text className="data-group" x="90" y="64">
                 General · Date &amp; Time
               </text>
-              <text x="485" y="42">
+              <text x="475" y="42">
                 Data Objects
               </text>
-              <text className="data-group" x="285" y="67">
+              <text className="data-group" x="230" y="67">
                 Policies
               </text>
-              <text className="data-group" x="420" y="67">
+              <text className="data-group" x="365" y="67">
                 General
               </text>
-              <text className="data-group" x="617" y="67">
+              <text className="data-group" x="610" y="67">
                 Mission Surface
               </text>
-              <text x="880" y="42">
+              <text x="900" y="42">
                 Agentic Q&amp;A
               </text>
-              <text x="1090" y="42">
+              <text x="1120" y="42">
                 Agentic Workflow
               </text>
-              <text x="1280" y="42">
+              <text x="1310" y="42">
                 Chat
               </text>
             </g>

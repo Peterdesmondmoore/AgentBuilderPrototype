@@ -207,7 +207,7 @@
 }
 .mission-control-agent-type {
   fill: #9db1d0;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-anchor: middle;
@@ -216,7 +216,7 @@
 }
 .mission-control-agent-label {
   fill: #f2f6fd;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 750;
   text-anchor: middle;
   pointer-events: none;
