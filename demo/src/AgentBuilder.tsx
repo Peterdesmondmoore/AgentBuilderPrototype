@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-type Page = 'Home' | 'Login' | 'Agent Network' | 'Overview' | 'Builder' | 'Agent Testers' | 'Feedback'
+type Page = 'Overview' | 'Builder' | 'Agent Testers' | 'Feedback' | 'Home' | 'Login' | 'Agent Network'
 type RunState = 'idle' | 'issues' | 'passed'
 type NetworkNode = { id: string; type: string; label: string; detail: string; x: number; y: number; selected?: boolean }
 type AgentDraft = { qaDescription: string; targetModel: string; timeHorizon: string; reasoningLevel: string; dataObjects: string[]; routingTargets: string[] }
@@ -9,9 +9,10 @@ type ChatMessage = { speaker: 'user' | 'assistant'; text: string }
 type ChatFeedbackEvidence = { transcript: ChatMessage[]; timestamp: string; agent: string; route: string; capability: string | null; dataObjects: string[]; model: string | null; executionPath: string[] }
 type AgentTesterFeedbackEvidence = { persona: string; transcript: string[][]; finding: string; route: string; dataObjects: string[]; horizon: string }
 type FeedbackCaptureState = 'idle' | 'prompt' | 'form'
-type FeedbackStatus = 'New' | 'Evaluated' | 'Draft Applied'
+type FeedbackStatus = 'New' | 'Evaluated' | 'Improvement Proposed' | 'Resolved'
 type NetworkLayer = 'All' | 'Experience' | 'Routing & Capabilities' | 'Context & Knowledge' | 'Models' | 'Feedback & Improvement'
 type FeedbackRecord = { id: string; sourceType: 'user' | 'agent-tester'; createdTime: string; agent: string; content: string; relatedInteraction: string; affectedCapability: string | null; evidence: ChatFeedbackEvidence | AgentTesterFeedbackEvidence; status: FeedbackStatus }
+type MissionSurfaceFixture = { name: string; module: string; purpose: string }
 
 const feedbackRelatesToNode = (record: FeedbackRecord, node: NetworkNode) => record.affectedCapability === node.label || record.evidence.route === node.label
 
@@ -41,6 +42,77 @@ const networkNodes: NetworkNode[] = [
 const networkEdges: Array<[string, string]> = [
   ['chat', 'router'], ['router', 'agent'], ['agent', 'qa'], ['agent', 'form'], ['qa', 'mission'], ['qa', 'raid'], ['qa', 'knowledge'], ['qa', 'model'], ['form', 'model'], ['model', 'response'], ['response', 'chat'],
 ]
+
+const missionSurfaceDataFixtures: MissionSurfaceFixture[] = [
+  { name: 'Mission Brief', module: 'Mission', purpose: 'Title, purpose, business challenge and strategic outcome.' },
+  { name: 'Mission Decisions', module: 'Mission', purpose: 'Mission and escalated Outcome decisions.' },
+  { name: 'Mission Financials', module: 'Mission', purpose: 'Budget, costs, benefits and assumptions.' },
+  { name: 'Mission Key Results', module: 'Mission', purpose: 'Criticality, target dates and attainment.' },
+  { name: 'Mission Outcomes', module: 'Mission', purpose: 'Linked Outcomes, ownership and evidence.' },
+  { name: 'Mission RAID Log', module: 'Mission', purpose: 'Risks, assumptions, issues and dependencies.' },
+  { name: 'Mission Status Update', module: 'Mission', purpose: 'Latest saved and AI-generated update.' },
+  { name: 'Mission Steering', module: 'Mission', purpose: 'Ownership, commitments and steering status.' },
+  { name: 'Outcome Brief', module: 'Outcome', purpose: 'Objective, problem statement and approach.' },
+  { name: 'Outcome Decisions', module: 'Outcome', purpose: 'Decisions, escalation and resolution details.' },
+  { name: 'Outcome Delivery Status', module: 'Outcome', purpose: 'Status, risk, target completion and delivery measures.' },
+  { name: 'Outcome Key Results', module: 'Outcome', purpose: 'Mission Key Results linked to the Outcome.' },
+  { name: 'Outcome Planner', module: 'Outcome', purpose: 'Tasks, dates, owners, dependencies and priority.' },
+  { name: 'Outcome RAID Log', module: 'Outcome', purpose: 'Outcome risks, assumptions, issues and dependencies.' },
+  { name: 'Outcome Team', module: 'Outcome', purpose: 'Owners, delivery leads and stakeholders.' },
+  { name: 'Network Note Context', module: 'Network', purpose: 'Notes, people, objectives, themes and follow-ups.' },
+  { name: 'Network Objective Context', module: 'Network', purpose: 'Networking answers, linked people and summaries.' },
+  { name: 'Network Relationship Context', module: 'Network', purpose: 'Person profile, objectives and notes.' },
+  { name: 'Data Object Catalogue', module: 'Agent Builder', purpose: 'Available governed objects, sources and permitted scopes.' },
+  { name: 'Company Data Isolation', module: 'Policies', purpose: 'Prevents cross-company information exposure.' },
+  { name: 'User-Authorised Access', module: 'Policies', purpose: 'Restricts retrieval to information available to the user.' },
+  { name: 'Information Sufficiency', module: 'Policies', purpose: 'Requires focused clarification when context is insufficient.' },
+  { name: 'Facts and Suggestions', module: 'Policies', purpose: 'Distinguishes retrieved facts from generated suggestions.' },
+  { name: 'Confirmation Before Action', module: 'Policies', purpose: 'Requires confirmation for consequential activity.' },
+  { name: 'Current Date and Time', module: 'System', purpose: 'UTC timestamp at the moment an AI use case runs.' },
+  { name: 'Current Page Context', module: 'System', purpose: 'Current page, entity, tab and URL of invocation.' },
+]
+
+const missionSurfaceCapabilityFixtures: MissionSurfaceFixture[] = [
+  { name: 'Outcome AI-assisted Status Update', module: 'Outcome request', purpose: 'Create an editable executive status update.' },
+  { name: 'Create a Mission', module: 'Outcome request', purpose: 'Governed Mission drafting and review.' },
+  { name: 'Outcome AI-assisted Draft', module: 'Outcome request', purpose: 'Draft and improve approved Outcome fields.' },
+  { name: 'Networking Objective Synthesis', module: 'Outcome request', purpose: 'Synthesize networking answers into an objective.' },
+  { name: 'Network Note Analysis', module: 'Data request', purpose: 'Analyze notes for themes, follow-ups and actions.' },
+  { name: 'Network Relationship Brief', module: 'Data request', purpose: 'Generate a brief from people, notes and objectives.' },
+  { name: 'Outcome Decision Draft', module: 'Outcome request', purpose: 'Draft decisions, options, trade-offs and actions.' },
+  { name: 'Mission Executive Summary', module: 'Data request', purpose: 'Generate an editable Mission status update.' },
+  { name: 'Outcome RAID Draft', module: 'Outcome request', purpose: 'Generate editable RAID log entries.' },
+  { name: 'Answer a Mission Surface question', module: 'Data request', purpose: 'Answer governed questions with approved data.' },
+]
+
+const fixtureNodeId = (prefix: string, name: string) => `${prefix}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`
+const fixtureLabel = (name: string) => name.length > 20 ? `${name.slice(0, 19)}…` : name
+
+const layoutAgentNetwork = (agent: AgentFixtureNetwork): AgentFixtureNetwork => {
+  if (agent.id !== 'agent-builder') return agent
+  const conversationNodes = agent.nodes.some((node) => node.id === 'chat-history') ? [] : [{ id: 'chat-history', type: 'Data Object', label: 'Chat History', detail: 'Conversation · explicit context only', x: 0, y: 0 }]
+  const contextNodes = missionSurfaceDataFixtures.map((item) => ({ id: fixtureNodeId('ms-data', item.name), type: item.module === 'System' ? 'System Context' : 'Data Object', label: fixtureLabel(item.name), detail: `${item.module} · ${item.purpose}`, x: 0, y: 0 }))
+  const capabilityNodes = missionSurfaceCapabilityFixtures.map((item) => ({ id: fixtureNodeId('ms-capability', item.name), type: 'Capability', label: fixtureLabel(item.name), detail: `${item.module} · ${item.purpose}`, x: 0, y: 0 }))
+  const nodes = [...agent.nodes, ...conversationNodes, ...capabilityNodes, ...contextNodes]
+  const edges: Array<[string, string]> = [...agent.edges, ...capabilityNodes.map((node) => ['router', node.id] as [string, string]), ...capabilityNodes.map((node, index) => [node.id, contextNodes[index % contextNodes.length].id] as [string, string])]
+  const contextLayoutNodes = nodes.filter((node) => ['Data Object', 'Knowledge source', 'System Context'].includes(node.type))
+  const contextIndex = new Map(contextLayoutNodes.map((node, index) => [node.id, index]))
+  const capabilityIndex = new Map(capabilityNodes.map((node, index) => [node.id, index]))
+  const positionedNodes = nodes.map((node) => {
+    if (contextIndex.has(node.id)) { const index = contextIndex.get(node.id)!; return { ...node, x: 690 + (index % 3) * 128, y: 22 + Math.floor(index / 3) * 55 } }
+    if (capabilityIndex.has(node.id)) { const index = capabilityIndex.get(node.id)!; return { ...node, x: 460, y: 48 + index * 54 } }
+    if (node.id === 'chat') return { ...node, x: 40, y: 285 }
+    if (node.id === 'router') return { ...node, x: 205, y: 285 }
+    if (node.id === 'agent') return { ...node, x: 350, y: 285 }
+    if (node.id === 'qa') return { ...node, x: 520, y: 215 }
+    if (node.id === 'form') return { ...node, x: 520, y: 365 }
+    if (node.id === 'model') return { ...node, x: 700, y: 505 }
+    if (node.id === 'response') return { ...node, x: 880, y: 505 }
+    if (node.id === 'knowledge') return { ...node, x: 700, y: 440 }
+    return node
+  })
+  return { ...agent, nodes: positionedNodes, edges }
+}
 
 const fixtureAgentNetworks: AgentFixtureNetwork[] = [
   { id: 'agent-builder', name: 'Agent Builder', summary: 'Delivery intelligence assistant', state: 'Active', nodes: networkNodes, edges: networkEdges, draft: { qaDescription: 'Determine material delivery concerns requiring management attention.', targetModel: 'gpt-5', timeHorizon: 'Current reporting period', reasoningLevel: 'Medium', dataObjects: ['mission', 'raid'], routingTargets: ['qa', 'form'] } },
@@ -130,8 +202,7 @@ const transcriptPassed = [
 ]
 
 export default function AgentBuilder() {
-  const [page, setPage] = useState<Page>('Home')
-  const [authenticated, setAuthenticated] = useState(false)
+  const [page, setPage] = useState<Page>('Overview')
   const [personaOpen, setPersonaOpen] = useState(false)
   const [selectedPersona, setSelectedPersona] = useState('Delivery Manager')
   const [runState, setRunState] = useState<RunState>('idle')
@@ -161,8 +232,6 @@ export default function AgentBuilder() {
   }, [bridge, page])
 
   const openBuilder = () => { setBuilderFinding(true); setPage('Builder') }
-  const login = () => { setAuthenticated(true); setPage('Agent Network') }
-  const exitWorkspace = () => { setAuthenticated(false); setPage('Home') }
   const runTest = () => setRunState(chatHistoryAdded ? 'passed' : 'issues')
   const createFeedback = () => {
     setFeedbackRecords((current) => current.some((record) => record.sourceType === 'agent-tester') ? current : [...current, { id: `feedback-${current.length + 1}`, sourceType: 'agent-tester', createdTime: '2026-08-22T09:30:00.000Z', agent: 'Agent Builder', content: 'RAID Analysis does not consider recent conversation context.', relatedInteraction: 'Delivery Manager test: Management attention check', affectedCapability: 'RAID Analysis', evidence: { persona: 'Delivery Manager', transcript: transcriptWithIssue, finding: 'RAID Analysis does not consider recent conversation context.', route: 'RAID Analysis', dataObjects: ['Mission', 'RAID Items'], horizon: 'Current reporting period' }, status: 'New' }])
@@ -170,24 +239,21 @@ export default function AgentBuilder() {
   }
   const createUserFeedback = (evidence: ChatFeedbackEvidence, content: string) => setFeedbackRecords((current) => [...current, { id: `feedback-${current.length + 1}`, sourceType: 'user', createdTime: evidence.timestamp, agent: evidence.agent, content, relatedInteraction: `Chat interaction at ${new Date(evidence.timestamp).toLocaleString()}`, affectedCapability: evidence.capability, evidence, status: 'New' }])
   const evaluateFeedback = (recordId: string) => setFeedbackRecords((current) => current.map((record) => record.id === recordId && record.status === 'New' ? { ...record, status: 'Evaluated' } : record))
-  const applyDraft = (recordId: string) => { setChatHistoryAdded(true); setFeedbackRecords((current) => current.map((record) => record.id === recordId && record.status === 'Evaluated' ? { ...record, status: 'Draft Applied' } : record)) }
+  const applyDraft = (recordId: string) => { setChatHistoryAdded(true); setFeedbackRecords((current) => current.map((record) => record.id === recordId && record.status === 'Evaluated' ? { ...record, status: 'Resolved' } : record)) }
   const transcript = runState === 'passed' ? transcriptPassed : transcriptWithIssue
 
   return <div className="ab-app">
     <header className="ab-topbar">
-      <button className="ab-brand" onClick={() => setPage(authenticated ? 'Agent Network' : 'Home')} aria-label="Agent Builder home"><span>AB</span><div><strong>Agent Builder</strong><small>{authenticated ? 'Agent Network' : 'Visual AI agent design'}</small></div></button>
+      <button className="ab-brand" onClick={() => setPage('Overview')} aria-label="Agent Builder overview"><span>AB</span><div><strong>Agent Builder</strong><small>Visual AI agent design</small></div></button>
       <nav aria-label="Agent Builder primary navigation">
-        {!authenticated ? <><button className={page === 'Home' ? 'active' : ''} onClick={() => setPage('Home')}>Home</button><button className={page === 'Login' ? 'active' : ''} onClick={() => setPage('Login')}>Log in</button></> : <button className={page === 'Agent Network' ? 'active' : ''} onClick={() => setPage('Agent Network')}>Agent Network</button>}
+        {(['Overview', 'Builder', 'Agent Testers', 'Feedback'] as Page[]).map((item) => <button key={item} className={page === item ? 'active' : ''} onClick={() => setPage(item)}>{item}</button>)}
       </nav>
-      {authenticated ? <div className="ab-status"><span className="fixture-dot" /> Fixture workspace <button onClick={exitWorkspace} aria-label="Exit fixture workspace">PD</button></div> : <button className="home-login-link" onClick={() => setPage('Login')}>Log in <span>→</span></button>}
+      <div className="ab-status"><span className="fixture-dot" /> Fixture-only prototype</div>
     </header>
 
     <main className="ab-main">
-      {page === 'Home' && <HomeScreen goTo={setPage} />}
-      {page === 'Login' && <LoginScreen onLogin={login} />}
-      {page === 'Agent Network' && <AgentNetworkScreen goTo={setPage} chatHistoryAdded={chatHistoryAdded} onUserFeedback={createUserFeedback} onApplyFeedbackDraft={applyDraft} userFeedbackCount={feedbackRecords.filter((record) => record.sourceType === 'user').length} feedbackRecords={feedbackRecords} />}
       {page === 'Overview' && <Overview goTo={setPage} />}
-      {page === 'Builder' && <Builder chatHistoryAdded={chatHistoryAdded} finding={builderFinding} goTesters={() => setPage('Agent Testers')} />}
+      {page === 'Builder' && <AgentNetwork goTo={setPage} chatHistoryAdded={chatHistoryAdded} onUserFeedback={createUserFeedback} onApplyFeedbackDraft={applyDraft} userFeedbackCount={feedbackRecords.filter((record) => record.sourceType === 'user').length} feedbackRecords={feedbackRecords} />}
       {page === 'Agent Testers' && <Testers
         selectedPersona={selectedPersona} setSelectedPersona={setSelectedPersona} personaOpen={personaOpen} setPersonaOpen={setPersonaOpen}
         runState={runState} runTest={runTest} testPackRun={testPackRun} setTestPackRun={setTestPackRun}
@@ -236,7 +302,8 @@ function AgentNetwork({ goTo, chatHistoryAdded, onUserFeedback, onApplyFeedbackD
   const [selectedAgentId, setSelectedAgentId] = useState('agent-builder')
   const [selectedNodeId, setSelectedNodeId] = useState('agent')
   const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null)
-  const selectedAgent = agentNetworks.find((agent) => agent.id === selectedAgentId) ?? agentNetworks[0]
+  const configuredAgent = agentNetworks.find((agent) => agent.id === selectedAgentId) ?? agentNetworks[0]
+  const selectedAgent = useMemo(() => layoutAgentNetwork(configuredAgent), [configuredAgent])
   const visibleAgents = agentNetworks.filter((agent) => agent.name.toLowerCase().includes(agentFilter.trim().toLowerCase()))
   const nodeById = new Map(selectedAgent.nodes.map((node) => [node.id, node]))
   const selectedNode = nodeById.get(selectedNodeId) ?? nodeById.get('agent')!
@@ -244,7 +311,7 @@ function AgentNetwork({ goTo, chatHistoryAdded, onUserFeedback, onApplyFeedbackD
   const agentFeedback = feedbackRecords.filter((record) => record.agent === selectedAgent.name)
   const feedbackForNode = agentFeedback.filter((record) => feedbackRelatesToNode(record, selectedNode))
   const selectedFeedback = feedbackForNode.find((record) => record.id === selectedFeedbackId) ?? null
-  const unresolvedFeedbackCount = (node: NetworkNode) => agentFeedback.filter((record) => record.status !== 'Draft Applied' && feedbackRelatesToNode(record, node)).length
+  const unresolvedFeedbackCount = (node: NetworkNode) => agentFeedback.filter((record) => record.status !== 'Resolved' && feedbackRelatesToNode(record, node)).length
   const evaluatedFeedback = agentFeedback.filter((record) => record.status === 'Evaluated')
   const draftRecommendation = evaluatedFeedback.find((record) => record.sourceType === 'agent-tester' && record.affectedCapability === 'RAID Analysis') ?? null
   const relatedNodeIds = new Set(selectedAgent.edges.filter(([sourceId, targetId]) => sourceId === selectedNode.id || targetId === selectedNode.id).flatMap(([sourceId, targetId]) => [sourceId, targetId]))
@@ -377,8 +444,8 @@ function AgentNetwork({ goTo, chatHistoryAdded, onUserFeedback, onApplyFeedbackD
     if (!svg) return
     const matchingTypes: Record<Exclude<NetworkLayer, 'All'>, string[]> = {
       Experience: ['Chat', 'Agent', 'Response'],
-      'Routing & Capabilities': ['Router', 'Q&A capability', 'Form / workflow', 'Agent'],
-      'Context & Knowledge': ['Data Object', 'Knowledge source'],
+      'Routing & Capabilities': ['Router', 'Q&A capability', 'Form / workflow', 'Capability', 'Agent'],
+      'Context & Knowledge': ['Data Object', 'Knowledge source', 'System Context'],
       Models: ['Model'],
       'Feedback & Improvement': [],
     }
@@ -443,7 +510,7 @@ function Overview({ goTo }: { goTo: (page: Page) => void }) {
     <section className="ab-hero"><div><span className="ab-kicker">AGENT BUILDER</span><h1>Build assistants that make the next decision clearer.</h1><p>Configure the capabilities, context and feedback loops that turn complex operational questions into useful conversations.</p><button className="ab-primary" onClick={() => goTo('Builder')}>Open Builder <span>→</span></button></div><div className="ab-layer-visual" aria-label="Four layer operating model"><b>1</b><span>Knowledge</span><b>2</b><span>Capabilities</span><b>3</b><span>Conversation</span><b className="layer-four">4</b><span>Feedback & improvement</span></div></section>
     <section className="ab-section-heading"><span>OPERATING MODEL</span><h2>One configured system, four connected layers.</h2><p>Agent Builder keeps the route, context and response visible so teams can improve deliberately.</p></section>
     <section className="ab-layer-grid">
-      {['Knowledge & data objects', 'Capabilities & routing', 'Chat experience', 'Feedback & improvement'].map((title, i) => <article key={title}><span>0{i + 1}</span><h3>{title}</h3><p>{i === 3 ? 'Observed feedback and synthetic testing feed the same evaluation and recommendation lifecycle.' : 'A clear, inspectable part of the assistant experience.'}</p></article>)}
+      {['Inputs · Timeliness & Data Objects', 'Process · Agentic Q&A & Forms', 'Output · Chat', 'Feedback & Improvement'].map((title, i) => <article key={title}><span>0{i + 1}</span><h3>{title}</h3><p>{i === 3 ? 'Observed feedback and synthetic testing feed the same evaluation and recommendation lifecycle.' : 'A clear, inspectable part of the assistant experience.'}</p></article>)}
     </section>
     <section className="ab-coming-soon">
       <div className="ab-coming-copy"><span className="coming-badge">COMING SOON · SELF-IMPROVEMENT</span><h2>Let your users test your AI — before they are users.</h2><p>Create AI personas that behave like the people your assistant is designed to support. Agent Testers will interact with your assistant, challenge its routing, reasoning and workflows, and systematically identify where the experience breaks down.</p><p className="ab-quote">Testing from the outside exposes failures that configuration review alone cannot see.</p></div>
@@ -493,7 +560,7 @@ function Feedback({ feedbackRecords, chatHistoryAdded, evaluate: evaluateRecord,
   const applyDraft = (_event?: unknown) => { if (selectedRecord) applyDraftRecord(selectedRecord.id) }
   const evaluated = selectedRecord?.status !== 'New'
   if (selectedRecord?.status === 'New') return <section className="ab-feedback-page"><div className="ab-page-heading"><div><span className="ab-kicker">LAYER 4 · FEEDBACK RECORD</span><h1>Feedback</h1><p>Evidence is ready for deterministic evaluation. No recommendation has been generated.</p></div></div><div className="feedback-workspace"><section className="feedback-record"><div className="source-badge">SOURCE · {selectedRecord.sourceType === 'user' ? 'USER' : 'AGENT TESTER'}</div><h2>{selectedRecord.content}</h2><p>{selectedRecord.relatedInteraction}</p><div className="feedback-meta"><span>ID <b>{selectedRecord.id}</b></span><span>Agent <b>{selectedRecord.agent}</b></span><span>Capability <b>{selectedRecord.affectedCapability ?? 'Not identified'}</b></span><span>Status <b>New</b></span></div><p className="feedback-evidence"><b>Interaction evidence:</b> {evidenceSummary}</p></section><section className="recommendation"><span className="ab-kicker">NEXT STEP</span><h2>Evaluate this Feedback</h2><p>Evaluation will diagnose the issue from the retained evidence. It will not modify Agent Builder configuration.</p><button className="ab-primary" onClick={() => evaluate(selectedRecord.id)}>Evaluate Feedback <span>→</span></button></section></div><aside className="human-control"><b>Human control remains required.</b><p>New Feedback exposes source evidence and affected configuration only. Recommendations follow evaluation.</p></aside></section>
-  if (selectedRecord && !agentTesterRecord) return <section className="ab-feedback-page"><div className="ab-page-heading"><div><span className="ab-kicker">LAYER 4 · EVALUATED USER FEEDBACK</span><h1>Feedback</h1><p>The deterministic evaluation is complete. Configuration remains unchanged.</p></div></div><div className="feedback-workspace"><section className="feedback-record"><div className="source-badge">SOURCE · USER</div><h2>{selectedRecord.content}</h2><p>{selectedRecord.relatedInteraction}</p><div className="feedback-meta"><span>ID <b>{selectedRecord.id}</b></span><span>Agent <b>{selectedRecord.agent}</b></span><span>Capability <b>{selectedRecord.affectedCapability ?? 'Not identified'}</b></span><span>Status <b>{selectedRecord.status}</b></span></div><p className="feedback-evidence"><b>Interaction evidence:</b> {evidenceSummary}</p></section><section className="recommendation"><span className="ab-kicker">EVALUATION SUMMARY</span><h2>Captured interaction needs human review</h2><div className="recommendation-row"><span>Diagnosed issue</span><b>Response usefulness requires review against the user’s evidence.</b></div><div className="recommendation-row"><span>Affected component</span><b>{selectedRecord.affectedCapability ?? 'Route and response'}</b></div><div className="recommendation-row"><span>Recommended improvement</span><b>Review the configured capability and its available context against the retained transcript.</b></div><p>Rationale: the feedback is tied to the recorded route, Data Objects and response path. This deterministic evaluation does not make a Draft change.</p></section></div><aside className="human-control"><b>Human control remains required.</b><p>Evaluation produces a recommendation only. A person must decide whether a configuration change is appropriate.</p></aside></section>
+  if (selectedRecord && !agentTesterRecord) return <section className="ab-feedback-page"><div className="ab-page-heading"><div><span className="ab-kicker">LAYER 4 · EVALUATED USER FEEDBACK</span><h1>Feedback</h1><p>The deterministic evaluation is complete. Configuration remains unchanged until a person approves a Draft change.</p></div></div><div className="feedback-workspace"><section className="feedback-record"><div className="source-badge">SOURCE · USER</div><h2>{selectedRecord.content}</h2><p>{selectedRecord.relatedInteraction}</p><div className="feedback-meta"><span>ID <b>{selectedRecord.id}</b></span><span>Agent <b>{selectedRecord.agent}</b></span><span>Capability <b>{selectedRecord.affectedCapability ?? 'RAID Analysis'}</b></span><span>Status <b>{selectedRecord.status}</b></span></div><p className="feedback-evidence"><b>Interaction evidence:</b> {evidenceSummary}</p></section><section className="recommendation"><span className="ab-kicker">EVALUATION SUMMARY</span><h2>Missing recent conversation context</h2><div className="recommendation-row"><span>Diagnosed issue</span><b>RAID Analysis retrieved structured data but did not consider recent Chat History.</b></div><div className="recommendation-row"><span>Affected component</span><b>RAID Analysis</b></div><div className="recommendation-row"><span>Recommended improvement</span><b>Add Chat History with a Last 7 Days horizon.</b></div><p>Rationale: recent conversation can contain management concerns not represented in the current structured RAID objects.</p><button className="ab-primary" onClick={applyDraft}>Apply to Draft <span>→</span></button></section></div><aside className="human-control"><b>Human control remains required.</b><p>Evaluation produces a recommendation only. Apply to Draft is a separate human-reviewed action.</p></aside></section>
   if (selectedRecord && agentTesterRecord && selectedRecord.status === 'Evaluated') return <section className="ab-feedback-page"><div className="ab-page-heading"><div><span className="ab-kicker">LAYER 4 · EVALUATED AGENT TESTER FEEDBACK</span><h1>Feedback</h1><p>The deterministic evaluation is complete. Configuration remains unchanged until a human applies a Draft change.</p></div></div><div className="feedback-workspace"><section className="feedback-record"><div className="source-badge">SOURCE · AGENT TESTER</div><h2>{selectedRecord.content}</h2><p>{selectedRecord.relatedInteraction}</p><div className="feedback-meta"><span>ID <b>{selectedRecord.id}</b></span><span>Agent <b>{selectedRecord.agent}</b></span><span>Capability <b>{selectedRecord.affectedCapability}</b></span><span>Status <b>{selectedRecord.status}</b></span></div><p className="feedback-evidence"><b>Interaction evidence:</b> {evidenceSummary}</p></section><section className="recommendation"><span className="ab-kicker">EVALUATION SUMMARY</span><h2>Missing recent conversation context</h2><div className="recommendation-row"><span>Diagnosed issue</span><b>RAID Analysis retrieved structured data but did not consider recent Chat History.</b></div><div className="recommendation-row"><span>Affected component</span><b>RAID Analysis</b></div><div className="recommendation-row"><span>Recommended improvement</span><b>Add Chat History with a Last 7 Days horizon.</b></div><p>Rationale: the tester’s transcript identifies a release dependency raised earlier in the week; supplying that evidence to the capability makes its risk response timely and useful.</p><button className="ab-primary" onClick={applyDraft}>Apply to Draft <span>→</span></button></section></div><aside className="human-control"><b>Human control remains required.</b><p>Evaluation created a recommendation only. Apply to Draft is a separate human-reviewed action.</p></aside></section>
   return <section className="ab-feedback-page"><div className="ab-page-heading"><div><span className="ab-kicker">LAYER 4 · UNIFIED IMPROVEMENT LOOP</span><h1>Feedback</h1><p>Observed user feedback and Agent Tester findings share one local evidence-led record model.</p></div></div><div className="feedback-flow"><div><b>Real User</b><span>Interaction → User Feedback → Evaluation → Recommendation</span></div><div className="synthetic"><b>Agent Tester</b><span>Synthetic Interaction → Test Finding → Feedback → Evaluation → Recommendation</span></div></div>{!selectedRecord ? <div className="feedback-empty"><h2>No feedback records</h2><p>End a Chat conversation or create Feedback from an Agent Tester Finding to add a local record.</p><button className="ab-primary" onClick={openBuilder}>Open Builder <span>→</span></button></div> : <div className="feedback-workspace"><section className="feedback-record"><div className="source-badge">SOURCE · {selectedRecord.sourceType === 'user' ? 'USER' : 'AGENT TESTER'}</div><h2>{selectedRecord.content}</h2><p>{selectedRecord.relatedInteraction}</p><div className="feedback-meta"><span>ID <b>{selectedRecord.id}</b></span><span>Agent <b>{selectedRecord.agent}</b></span><span>Capability <b>{selectedRecord.affectedCapability ?? 'Not identified'}</b></span><span>Status <b>{selectedRecord.status}</b></span></div><p className="feedback-evidence"><b>Associated evidence:</b> {evidenceSummary}</p></section>{agentTesterRecord ? <section className="recommendation"><span className="ab-kicker">EVALUATION</span><h2>Targeted improvement recommendation</h2><div className="recommendation-row"><span>Target</span><b>RAID Analysis</b></div><div className="recommendation-row"><span>Add Data Object</span><b>Chat History</b></div><div className="recommendation-row"><span>Horizon</span><b>Last 7 Days</b></div><p>The recommendation makes recent user-raised management concerns available to the same Q&A that retrieves current structured RAID information.</p>{!evaluated ? <button className="ab-primary" onClick={evaluate}>Evaluate Feedback <span>→</span></button> : !chatHistoryAdded ? <><div className="evaluation-complete">✓ Evaluation complete · Human review required before applying a Draft change.</div><button className="ab-primary" onClick={applyDraft}>Apply to Draft <span>→</span></button></> : <><div className="draft-applied">✓ Draft updated: Chat History · Last 7 Days</div><button className="ab-primary" onClick={retest}>Return to Agent Testers · Retest <span>→</span></button></>}</section> : <section className="recommendation"><span className="ab-kicker">USER FEEDBACK</span><h2>Captured for the shared lifecycle</h2><p>This local user Feedback record retains its interaction evidence. Evaluation has intentionally not been started in this prototype task.</p><div className="recommendation-row"><span>Created</span><b>{new Date(selectedRecord.createdTime).toLocaleString()}</b></div><div className="recommendation-row"><span>Data Objects</span><b>{selectedRecord.evidence.dataObjects.join(' · ') || 'None recorded'}</b></div></section>}</div>}<aside className="human-control"><b>Human control remains required.</b><p>Feedback records retain evidence and status locally. They cannot directly rewrite Agent Builder configuration.</p>{chatHistoryAdded && <button className="ab-secondary" onClick={openBuilder}>Inspect RAID Analysis Draft <span>→</span></button>}</aside></section>
 }

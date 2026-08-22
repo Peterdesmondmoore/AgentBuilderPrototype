@@ -12,6 +12,7 @@ import './agent-network-inspector.css'
 import './agent-network-editing.css'
 import './agent-network-chat.css'
 import './agent-network-execution.css'
+import './agent-network-wide.css'
 
 const isAgentBuilder = window.location.hash.startsWith('#/prototypes/agent-builder-self-improvement')
 
